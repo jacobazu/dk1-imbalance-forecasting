@@ -19,11 +19,14 @@ q <- make_quarters(imb, transmute(imb, time, spot = SpotPriceEUR), readRDS("data
 issues <- seq(as_datetime("2025-03-12 00:00:00"), max(q$time) - hours(4), by = "hour")
 base <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel", "spot_rank", "spot_diff",
           "spot_neg", "wpow", "solar")
-# real-time inputs only help in the first hour (tested in the backtest), so only used there
-cols_for <- function(b) c(intraday_cols, if (b == 1) realtime_cols)
+# real-time inputs only help in the first hour (tested in the backtest), so only used there.
+# REV=1 adds energinet's newer wind/solar forecasts for the target hour: tested, no gain, not used
+rev <- Sys.getenv("REV") == "1"
+cols_for <- function(b) c(intraday_cols, if (b == 1) realtime_cols, if (rev) revision_cols)
+fcst <- readRDS("data/raw/energinet_forecasts.rds")
 d <- make_issues(q, make_state(q, imb), issues) |>
-  left_join(make_realtime(readRDS("data/raw/realtime.rds"), readRDS("data/raw/energinet_forecasts.rds"),
-                          issues), by = "issue")
+  left_join(make_realtime(readRDS("data/raw/realtime.rds"), fcst, issues), by = "issue") |>
+  add_revisions(fcst)
 d <- d[complete.cases(d[, c(base, intraday_cols)]) & !is.na(d$dir), ]
 d <- d[d$bucket > 1 | complete.cases(d[, realtime_cols]), ] |>
   mutate(date = as_date(with_tz(time, "Europe/Copenhagen")))
@@ -51,7 +54,7 @@ out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)
-saveRDS(fc, "data/processed/intraday_forecasts.rds")
+saveRDS(fc, if (rev) "data/processed/intraday_forecasts_rev.rds" else "data/processed/intraday_forecasts.rds")
 fc |>
   mutate(ll = log_loss(cbind(down, none, up), dir)) |>
   group_by(bucket, model) |>

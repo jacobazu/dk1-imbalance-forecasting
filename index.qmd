@@ -459,7 +459,10 @@ regulation.
 
 **Evaluation.** Log loss and Brier score for the direction, pinball loss for the spread,
 Diebold-Mariano tests on the daily average loss. The real-time inputs are only used for the first hour
-because the backtest showed they help there and not further ahead.
+because the backtest showed they help there and not further ahead. Energinet's newer wind and solar
+forecasts for the hour being forecast (the 5-hour-ahead forecast, used only from 4 hours before the
+hour, when its last part is published) were also tested and made no difference, so they are not used.
+Most likely the market already trades on them, and the imbalance is what is left after that.
 
 **Data:** [Energi Data Service](https://www.energidataservice.dk) (Energinet), weather by
 [Open-Meteo](https://open-meteo.com).<br>

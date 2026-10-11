@@ -41,7 +41,9 @@ much lower the log loss is than the benchmark:
 
 The ensemble beats the benchmark and both single models at every horizon (Diebold-Mariano, p < 0.01).
 The gains are small: imbalances are the errors in everyone's plans, so most of them can't be seen
-coming from public data. The spread forecast does not beat its benchmark. With a perfect direction
+coming from public data. Energinet's updated wind and solar forecasts for the hour ahead didn't help
+either (tested without look-ahead: only used from when their last part is published), because the
+market probably already trades on them. The spread forecast does not beat its benchmark. With a perfect direction
 forecast its pinball loss would be about a third lower, so the spread uncertainty is mostly about the
 direction. The current numbers and the live track record are on the dashboard.
 

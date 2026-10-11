@@ -95,3 +95,27 @@ make_realtime <- function(rt, fc, issue_times) {
 }
 realtime_cols <- c("afrr_15", "afrr_60", "wind_err", "solar_err", "flow_de", "flow_no", "flow_se",
                    "flow_nl", "flow_dk2")
+
+# how much energinet's newer dk1 wind/solar forecast for the target hour differs from the day-ahead
+# forecast. the hourly 5-hour forecast is the average of 5-minute forecasts, the last one made 4h05
+# before the end of the hour, so it is only used from 4 hours before the hour starts (in the live api
+# it shows up about 5 hours before). no newer forecast (or none at all) = no revision
+# rows = make_issues() output, needs issue and time
+add_revisions <- function(rows, fc) {
+  rev <- fc |>
+    filter(PriceArea == "DK1") |>
+    transmute(fc_hour = ymd_hms(HourUTC, tz = "UTC"),
+              type = if_else(ForecastType == "Solar", "solar_rev", "wind_rev"),
+              rev  = coalesce(Forecast5Hour - ForecastDayAhead, 0)) |>
+    group_by(fc_hour, type) |>
+    summarise(rev = sum(rev) / 1000, .groups = "drop") |>
+    pivot_wider(names_from = type, values_from = rev)
+  rows |>
+    mutate(fc_hour = floor_date(time, "hour")) |>
+    left_join(rev, by = "fc_hour") |>
+    mutate(known     = fc_hour - hours(4) <= issue - minutes(10),
+           wind_rev  = if_else(known, coalesce(wind_rev, 0), 0),
+           solar_rev = if_else(known, coalesce(solar_rev, 0), 0)) |>
+    select(-fc_hour, -known)
+}
+revision_cols <- c("wind_rev", "solar_rev")
