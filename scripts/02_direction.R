@@ -1,5 +1,6 @@
-# direction backtest: forecast all quarters of day D at 14:00 on D-1, trained on the year before
-# benchmark (last 28 days by hour), multinomial lasso, xgboost and their average
+# direction backtest: forecast all quarters of day D at 14:00 on D-1
+# models refit every 7 days on the year before (as in the live run), benchmark = last 28 days by hour
+# multinomial lasso, xgboost and their average
 
 library(dplyr)
 library(tidyr)
@@ -19,18 +20,23 @@ ok <- complete.cases(q[, feature_cols]) & !is.na(q$dir)
 window <- 365
 cores  <- as.integer(Sys.getenv("CORES", max(1, detectCores() - 1)))
 full_days <- q |> filter(ok) |> count(date) |> filter(n >= 92) |> pull(date)
-test_days <- full_days[full_days >= as_date("2025-11-01")]
+refits    <- seq(as_date("2025-11-01"), max(full_days), by = "7 days")
 
 t0 <- Sys.time()
-out <- mclapply(test_days, \(D) tryCatch({
-  train <- q[ok & q$date >= D - window & (q$date <= D - 2 | (q$date == D - 1 & q$hour < 12)), ]
-  test  <- q[ok & q$date == D, ]
-  P <- list(clim = clim_probs(train, test),
-            mnl  = mnl_probs(train, test),
-            xgb  = xgb_probs(train, test, as.integer(D)))
-  P$ens <- (P$mnl + P$xgb) / 2
-  bind_rows(lapply(names(P), \(m) tibble(time = test$time, date = D, hour = test$hour, dir = test$dir,
-                                         model = m, as_tibble(P[[m]]))))
+out <- mclapply(refits, \(R) tryCatch({
+  # fitted at midnight starting day R on the complete days before, used for forecasts made R to R+6
+  train <- q[ok & q$date >= R - window & q$date < R, ]
+  m_mnl <- fit_mnl(train)
+  m_xgb <- fit_xgb(train, as.integer(R))
+  days  <- full_days[full_days >= R + 1 & full_days <= R + 7]
+  bind_rows(lapply(days, \(D) {
+    test <- q[ok & q$date == D, ]
+    known <- q[ok & q$date >= D - 30 & (q$date <= D - 2 | (q$date == D - 1 & q$hour < 12)), ]
+    P <- list(clim = clim_probs(known, test), mnl = pred_mnl(m_mnl, test), xgb = pred_xgb(m_xgb, test))
+    P$ens <- (P$mnl + P$xgb) / 2
+    bind_rows(lapply(names(P), \(m) tibble(time = test$time, date = D, hour = test$hour, dir = test$dir,
+                                           model = m, as_tibble(P[[m]]))))
+  }))
 }, error = \(e) NULL), mc.cores = cores)
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 

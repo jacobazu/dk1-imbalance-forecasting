@@ -38,8 +38,12 @@ horizon_labels <- c("0-1h" = "0–1 h", "1-2h" = "1–2 h", "2-3h" = "2–3 h", 
 
 # everything below comes from forecasts/ and results/, nothing is typed in by hand
 read_if <- function(f) if (file.exists(f)) read_csv(f, show_col_types = FALSE) else NULL
-intra  <- read_if("forecasts/intraday_latest.csv")
-dayah  <- read_if("forecasts/dayahead_latest.csv")
+# latest forecasts from the logs (forecasts are only added, never changed)
+intra  <- read_if("forecasts/intraday_log.csv")
+if (!is.null(intra)) intra <- filter(intra, issue == max(issue))
+dayah  <- read_if("forecasts/dayahead_log.csv")
+if (!is.null(dayah)) dayah <- filter(dayah, date == max(date))
+live   <- read_if("results/live_scored.csv")
 scores <- read_if("results/direction_scores.csv")
 tests  <- read_if("results/direction_tests.csv")
 calib  <- read_if("results/calibration.csv")
@@ -101,7 +105,7 @@ has_intra <- !is.null(intra)
 if (has_intra) {
   ie <- intra |> filter(model == "ens") |> arrange(time) |>
     mutate(label = format(dk(time), "%H:%M"))
-  issued <- dk(ie$issue[1])
+  made <- dk(ie$made_utc[1])
   h1 <- ie |> filter(bucket == 1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
   h1_dir <- names(which.max(unlist(h1[, c("down", "none", "up")])))
   ic <- intra |> filter(model == "clim", bucket == 1) |> summarise(across(c(down, none, up), mean))
@@ -116,6 +120,18 @@ if (has_da) {
   da_avg <- de |> summarise(across(c(down, none, up, mean), mean))
   da_dir_counts <- table(factor(c("down", "none", "up")[max.col(as.matrix(de[, c("down", "none", "up")]))],
                                 levels = c("down", "none", "up")))
+}
+
+# live track record: log loss of the ensemble vs the benchmark on the quarters known so far
+has_live <- !is.null(live) && nrow(live) > 0
+if (has_live) {
+  live_tab <- live |>
+    group_by(horizon) |>
+    summarise(quarters = n(), from = min(time), ens = mean(ll_ens), clim = mean(ll_clim), .groups = "drop") |>
+    mutate(skill = 1 - ens / clim, h = factor(horizon_labels[horizon], levels = horizon_labels)) |>
+    arrange(h)
+  live_skill <- function(h) { r <- live_tab[live_tab$horizon == h, ]; if (nrow(r) == 0) "\u2013" else pct(r$skill, 1) }
+  live_from  <- format(dk(min(live$time)), "%d %b %Y")
 }
 
 # accuracy text
@@ -155,8 +171,8 @@ spread_txt <- if (!is.null(spread)) {
 <div class="kpi" style="--accent: #f97316">
 <div>
 <div class="kpi-label">Forecast made</div>
-<div class="kpi-value">`r if (has_intra) format(issued, "%H:%M") else "–"`</div>
-<div class="kpi-sub">`r if (has_intra) paste(format(issued, "%a %d %b"), "· next 4 hours") else "no forecast yet"`</div>
+<div class="kpi-value">`r if (has_intra) format(made, "%H:%M") else "–"`</div>
+<div class="kpi-sub">`r if (has_intra) paste(format(made, "%a %d %b"), "· next 4 hours") else "no forecast yet"`</div>
 </div>
 <div class="kpi-icon"><i class="bi bi-clock-fill"></i></div>
 </div>
@@ -218,7 +234,7 @@ if (has_intra) spread_chart(ie, "")
 <div>
 <div class="kpi-label">Day</div>
 <div class="kpi-value">`r if (has_da) format(da_day, "%a %d %b") else "–"`</div>
-<div class="kpi-sub">made at 14:00 the day before</div>
+<div class="kpi-sub">`r if (has_da) paste("made", format(dk(de$made_utc[1]), "%a %H:%M"), "· data up to noon") else "after the day-ahead auction"`</div>
 </div>
 <div class="kpi-icon"><i class="bi bi-calendar-event-fill"></i></div>
 </div>
@@ -334,6 +350,86 @@ if (!is.null(calib)) {
 }
 ```
 
+# Track record
+
+## Row {height=14%}
+
+::: {.card}
+<div class="kpi" style="--accent: #f97316">
+<div>
+<div class="kpi-label">Quarters scored</div>
+<div class="kpi-value">`r if (has_live) format(nrow(live), big.mark = ",") else 0`</div>
+<div class="kpi-sub">`r if (has_live) paste("live since", live_from) else "starts after the first forecasts"`</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-calendar-check-fill"></i></div>
+</div>
+:::
+
+::: {.card}
+<div class="kpi" style="--accent: #16a34a">
+<div>
+<div class="kpi-label">Live skill, next hour</div>
+<div class="kpi-value">`r if (has_live) live_skill("0-1h") else "\u2013"`</div>
+<div class="kpi-sub">`r if (has_eval) paste("backtest", pct(skill_of("0-1h"), 1)) else ""`</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+</div>
+:::
+
+::: {.card}
+<div class="kpi" style="--accent: #6b7280">
+<div>
+<div class="kpi-label">Live skill, day-ahead</div>
+<div class="kpi-value">`r if (has_live) live_skill("day-ahead") else "\u2013"`</div>
+<div class="kpi-sub">`r if (has_eval) paste("backtest", pct(skill_of("day-ahead"), 1)) else ""`</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-calendar-event-fill"></i></div>
+</div>
+:::
+
+## Row {height=86%}
+
+```{r}
+#| title: "Live forecasts: log loss of the ensemble vs the benchmark, per horizon"
+#| output: asis
+if (has_live) {
+  live_tab |>
+    left_join(scores |> filter(period == "all", model == "ens") |> select(horizon, bt = skill), by = "horizon") |>
+    transmute(Horizon = as.character(h), Quarters = quarters, `Since` = format(dk(from), "%d %b"),
+              `Log loss ensemble` = round(ens, 3), `Log loss benchmark` = round(clim, 3),
+              `Live skill` = pct(skill, 1), `Backtest skill` = pct(bt, 1)) |>
+    knitr::kable(align = "lrrrrrr") |>
+    cat(sep = "\n")
+} else {
+  cat("The track record starts once the first forecast quarters have passed.")
+}
+cat("\n\nEvery forecast is saved before its quarter starts and never changed, and is scored once the",
+    "imbalance data for that quarter is published. A few days of live data say little: the backtest",
+    "needed months to show differences of a few percent.\n")
+```
+
+```{r}
+#| title: "Live skill so far (lower log loss than the benchmark, cumulative)"
+if (has_live) {
+  cum <- live |>
+    arrange(time) |>
+    group_by(horizon) |>
+    mutate(skill = 1 - cummean(ll_ens) / cummean(ll_clim), day = as_date(dk(time))) |>
+    group_by(horizon, day) |>
+    summarise(skill = last(skill), n = n(), .groups = "drop") |>
+    mutate(h = factor(horizon_labels[horizon], levels = horizon_labels))
+  h_colors <- setNames(c("#f97316", "#fb923c", "#fdba74", "#fed7aa", "#2563eb"), horizon_labels)
+  plot_ly(cum, x = ~day, y = ~skill, color = ~h, colors = h_colors, type = "scatter",
+          mode = "lines+markers", line = list(width = 2.5), marker = list(size = 7),
+          hovertemplate = "%{y:.1%}") |>
+    chart_layout() |>
+    layout(yaxis = list(tickformat = ".0%", zeroline = TRUE),
+           xaxis = list(type = "date", tickformat = "%d %b", dtick = 86400000))
+} else {
+  cat("No scored forecasts yet.")
+}
+```
+
 # Method
 
 ::: {.card title="How it works"}
@@ -344,16 +440,17 @@ is short (up-regulation), below it when the system is long (down-regulation), an
 nothing is activated. The models give the probability of each direction, and a forecast of the spread
 between the imbalance price and the spot price.
 
-**When.** Every hour, for the 16 quarters of the next 4 hours, using the published imbalance data up to
-the quarter that started an hour before, and for the first hour also the real-time state up to ten
-minutes before (aFRR activation, wind and solar production against Energinet's forecast, DK1
-cross-border flows). Once a day after the day-ahead auction, for all quarters of tomorrow.
+**When.** Every three hours, for the 16 quarters of the next 4 hours (every hour in the backtest),
+using the published imbalance data up to the quarter that started an hour before, and for the first
+hour also the real-time state up to ten minutes before (aFRR activation, wind and solar production
+against Energinet's forecast, DK1 cross-border flows). Once a day after the day-ahead auction, for all
+quarters of tomorrow, using the imbalance data up to noon.
 
 **Inputs.** Hour, quarter, weekday and holidays; the spot price of the quarter (level, negative,
 shape over the day); wind and solar forecasts made 48 hours ahead (Open-Meteo); recent imbalances.
 
 **Models.** A multinomial lasso (lambda by BIC), XGBoost, and their average (the ensemble). One model
-per hour ahead, trained on the year before. Benchmarks: how often each direction happened in that hour
+per hour ahead, trained on the year before and refitted once a week. Benchmarks: how often each direction happened in that hour
 over the last 28 days, and persistence (what followed the last known direction at that lead time).
 
 **Spread.** A mixture: the spreads of the last 60 days in up-regulated quarters weighted by the

@@ -8,4 +8,5 @@ data/
 .quarto
 index.html
 index_files/
-forecasts/*_latest.csv
+models/
+_site/

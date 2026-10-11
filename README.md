@@ -1,14 +1,56 @@
 # DK1 imbalance forecasting
 
-Forecasts of the imbalance in DK1 (western Denmark) for the next day: the probability that the system
-regulates up, down or not at all in each quarter-hour, and how far the imbalance price will be from the
-day-ahead price. Made every day after the day-ahead auction.
+**Dashboard:** https://jacobazu.github.io/dk1-imbalance-forecasting
 
-Work in progress.
+Forecasts of the imbalance in DK1 (western Denmark): the probability that Energinet regulates up, down
+or not at all in each quarter-hour, and the spread between the imbalance price and the day-ahead price.
+Every three hours for the next four hours, and once a day after the day-ahead auction for all of
+tomorrow. The forecasts are saved before their quarter starts and never changed, and they are scored
+once the imbalance data is published. It all runs on GitHub Actions.
+
+## Models
+
+- **Multinomial lasso**: one model for the three directions, lambda chosen by BIC.
+- **XGBoost**: gradient boosted trees with a softmax over the three directions.
+- **Ensemble**: the average of the two.
+- **Benchmark**: how often each direction happened in that hour over the last 28 days. The backtest
+  also has persistence (what followed the last known direction at that lead time).
+
+Intraday there is one model per hour ahead. Inputs: the last known quarters (direction, size of the
+imbalance, aFRR, spread), the calendar, the spot price of the quarter, wind and solar forecasts made 48
+hours ahead (Open-Meteo), and for the first hour also the real-time state ten minutes before (aFRR
+activation, wind and solar against Energinet's forecast, cross-border flows). The day-ahead model uses
+the calendar, the spot price, the weather and the imbalances up to noon the day before. The models are
+trained on the year before and refitted once a week.
+
+The spread is a mixture of the recent spreads in up- and down-regulated quarters, weighted by the
+direction probabilities.
+
+## Results
+
+Backtest from 2 November 2025 to 10 October 2026 (343 days), all horizons on the same days. Skill is how
+much lower the log loss is than the benchmark:
+
+| Horizon | Ensemble | Lasso | XGBoost | Persistence |
+|---|---|---|---|---|
+| 0–1 h | 4.9% | 4.0% | 4.4% | 0.1% |
+| 1–2 h | 2.7% | 2.1% | 2.1% | −0.5% |
+| 2–3 h | 2.2% | 1.7% | 1.8% | −0.9% |
+| 3–4 h | 2.0% | 1.5% | 1.6% | −1.1% |
+| Day-ahead | 1.5% | 1.2% | 0.6% | |
+
+The ensemble beats the benchmark and both single models at every horizon (Diebold-Mariano, p < 0.01).
+The gains are small: imbalances are the errors in everyone's plans, so most of them can't be seen
+coming from public data. The spread forecast does not beat its benchmark. With a perfect direction
+forecast its pinball loss would be about a third lower, so the spread uncertainty is mostly about the
+direction. The current numbers and the live track record are on the dashboard.
 
 ## License
 
 The code in this repository is released under the [MIT License](LICENSE).
+
+The forecasts are produced for research and portfolio purposes only and come
+with no guarantee of accuracy. They are not trading or investment advice.
 
 ### Data
 
