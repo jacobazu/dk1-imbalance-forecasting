@@ -17,7 +17,8 @@ id <- readRDS("data/processed/intraday_forecasts.rds") |>
   transmute(horizon = paste0(bucket - 1, "-", bucket, "h"), time, date, dir, model, down, none, up)
 
 # same test days for all horizons
-days <- intersect(unique(da$date), unique(id$date))
+days <- unique(da$date)
+days <- days[days %in% id$date]
 fc <- bind_rows(da, id) |>
   filter(date %in% days) |>
   mutate(ll = log_loss(cbind(down, none, up), dir),
