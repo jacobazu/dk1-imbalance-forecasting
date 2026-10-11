@@ -6,6 +6,8 @@ library(tidyr)
 library(lubridate)
 source("R/get_eds.R")
 
+dir.create("data/raw", recursive = TRUE, showWarnings = FALSE)
+
 start <- as_date("2025-03-01")
 end   <- Sys.Date() + 1
 cols  <- c("Minutes1UTC", "aFRR_ActivatedDK1", "OffshoreWindPower", "OnshoreWindPower", "SolarPower",
