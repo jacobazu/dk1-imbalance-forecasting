@@ -1,6 +1,7 @@
-# intraday backtest: every hour, the 16 quarters of the next 4 hours, from the published imbalance data
-# (last known quarter = the one that started 60 minutes before). one model per hour ahead,
-# refit every 7 days on the year before. benchmarks: persistence and the 28-day hourly frequencies
+# intraday backtest: every hour, the 16 quarters of the next 4 hours
+# published imbalance data up to the quarter that started 60 minutes before, and for the first hour
+# also the real-time state (up to 10 minutes before). one model per hour ahead, refit every 7 days
+# on the year before. benchmarks: persistence and the 28-day hourly frequencies
 
 library(dplyr)
 library(tidyr)
@@ -18,14 +19,13 @@ q <- make_quarters(imb, transmute(imb, time, spot = SpotPriceEUR), readRDS("data
 issues <- seq(as_datetime("2025-03-12 00:00:00"), max(q$time) - hours(4), by = "hour")
 base <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel", "spot_rank", "spot_diff",
           "spot_neg", "wpow", "solar")
-# REALTIME=1 adds the real-time state (01b_download_realtime.R)
-use_rt <- Sys.getenv("REALTIME") == "1"
-cols   <- c(intraday_cols, if (use_rt) realtime_cols)
-d <- make_issues(q, make_state(q, imb), issues)
-if (use_rt) d <- left_join(d, make_realtime(readRDS("data/raw/realtime.rds"),
-                                            readRDS("data/raw/energinet_forecasts.rds"), issues),
-                           by = "issue")
-d <- d[complete.cases(d[, c(base, cols)]) & !is.na(d$dir), ] |>
+# real-time inputs only help in the first hour (tested in the backtest), so only used there
+cols_for <- function(b) c(intraday_cols, if (b == 1) realtime_cols)
+d <- make_issues(q, make_state(q, imb), issues) |>
+  left_join(make_realtime(readRDS("data/raw/realtime.rds"), readRDS("data/raw/energinet_forecasts.rds"),
+                          issues), by = "issue")
+d <- d[complete.cases(d[, c(base, intraday_cols)]) & !is.na(d$dir), ]
+d <- d[d$bucket > 1 | complete.cases(d[, realtime_cols]), ] |>
   mutate(date = as_date(with_tz(time, "Europe/Copenhagen")))
 
 window <- 365
@@ -35,7 +35,7 @@ jobs   <- crossing(refit = refits, b = 1:4)
 
 t0 <- Sys.time()
 out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
-  R <- jobs$refit[j]; b <- jobs$b[j]
+  R <- jobs$refit[j]; b <- jobs$b[j]; cols <- cols_for(b)
   train <- d |> filter(bucket == b, time < R - minutes(60), time >= R - days(window))
   test  <- d |> filter(bucket == b, issue >= R, issue < R + days(7))
   if (nrow(test) == 0) return(NULL)
@@ -51,7 +51,7 @@ out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)
-saveRDS(fc, paste0("data/processed/intraday_forecasts", if (use_rt) "_rt", ".rds"))
+saveRDS(fc, "data/processed/intraday_forecasts.rds")
 fc |>
   mutate(ll = log_loss(cbind(down, none, up), dir)) |>
   group_by(bucket, model) |>
