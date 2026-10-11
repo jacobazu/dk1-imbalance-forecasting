@@ -69,8 +69,9 @@ feature_cols <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel
                   "spot_diff", "spot_neg", "wpow", "solar", "morning_up", "morning_down",
                   "week_up", "week_down")
 
-# dummies for hour, quarter and weekday (for the lasso), spot prices damped with asinh
-model_matrix <- function(df) {
+# dummies for hour, quarter and weekday (for the lasso), spot prices damped with asinh,
+# plus the extra columns as they are
+model_matrix <- function(df, extra = c("morning_up", "morning_down", "week_up", "week_down")) {
   dummies <- function(x, levels, prefix) {
     m <- outer(x, levels[-1], "==") * 1
     colnames(m) <- paste0(prefix, levels[-1])
@@ -80,6 +81,6 @@ model_matrix <- function(df) {
         as.matrix(df |> transmute(holiday, new_rule,
                                   spot = asinh(spot / 50), spot_rel = asinh(spot_rel / 50),
                                   spot_rank, spot_diff = asinh(spot_diff / 50), spot_neg,
-                                  wpow, solar = solar / 100, morning_up, morning_down,
-                                  week_up, week_down)))
+                                  wpow, solar = solar / 100)),
+        as.matrix(df[, extra]))
 }
