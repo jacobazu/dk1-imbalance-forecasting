@@ -58,3 +58,40 @@ persist_probs <- function(train, test) {
   colnames(P) <- names(classes)
   P
 }
+
+# real-time state at each issue time T, from power system right now (5-minute averages):
+# everything up to 10 minutes before T. forecast errors = actual wind/solar in denmark minus
+# energinet's day-ahead forecast (dk1 + dk2)
+make_realtime <- function(rt, fc, issue_times) {
+  da <- fc |>
+    transmute(hour = ymd_hms(HourUTC, tz = "UTC"), type = ForecastType, da = ForecastDayAhead) |>
+    group_by(hour, type) |>
+    summarise(da = sum(da), .groups = "drop") |>
+    pivot_wider(names_from = type, values_from = da)
+  x <- rt |>
+    mutate(hour = floor_date(time, "hour")) |>
+    left_join(da, by = "hour") |>
+    transmute(time, afrr = aFRR_ActivatedDK1,
+              wind_err  = OffshoreWindPower + OnshoreWindPower - `Offshore Wind` - `Onshore Wind`,
+              solar_err = SolarPower - Solar,
+              flow_de = Exchange_DK1_DE, flow_no = Exchange_DK1_NO, flow_se = Exchange_DK1_SE,
+              flow_nl = Exchange_DK1_NL, flow_dk2 = Exchange_DK1_DK2) |>
+    arrange(time)
+  # mean over the k 5-minute values up to 10 minutes before each issue time
+  win <- function(v, k) {
+    idx <- findInterval(as.numeric(issue_times - minutes(10)), as.numeric(x$time))
+    cs <- c(0, cumsum(ifelse(is.na(v), 0, v))); cn <- c(0, cumsum(!is.na(v)))
+    lo <- pmax(idx - k, 0)
+    out <- (cs[idx + 1] - cs[lo + 1]) / (cn[idx + 1] - cn[lo + 1])
+    out[!is.finite(out)] <- NA
+    out
+  }
+  tibble(issue     = issue_times,
+         afrr_15   = asinh(win(x$afrr, 3) / 50),  afrr_60 = asinh(win(x$afrr, 12) / 50),
+         wind_err  = win(x$wind_err, 12) / 1000,  solar_err = win(x$solar_err, 12) / 1000,
+         flow_de   = win(x$flow_de, 12) / 1000,   flow_no = win(x$flow_no, 12) / 1000,
+         flow_se   = win(x$flow_se, 12) / 1000,   flow_nl = win(x$flow_nl, 12) / 1000,
+         flow_dk2  = win(x$flow_dk2, 12) / 1000)
+}
+realtime_cols <- c("afrr_15", "afrr_60", "wind_err", "solar_err", "flow_de", "flow_no", "flow_se",
+                   "flow_nl", "flow_dk2")

@@ -18,8 +18,14 @@ q <- make_quarters(imb, transmute(imb, time, spot = SpotPriceEUR), readRDS("data
 issues <- seq(as_datetime("2025-03-12 00:00:00"), max(q$time) - hours(4), by = "hour")
 base <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel", "spot_rank", "spot_diff",
           "spot_neg", "wpow", "solar")
+# REALTIME=1 adds the real-time state (01b_download_realtime.R)
+use_rt <- Sys.getenv("REALTIME") == "1"
+cols   <- c(intraday_cols, if (use_rt) realtime_cols)
 d <- make_issues(q, make_state(q, imb), issues)
-d <- d[complete.cases(d[, c(base, intraday_cols)]) & !is.na(d$dir), ] |>
+if (use_rt) d <- left_join(d, make_realtime(readRDS("data/raw/realtime.rds"),
+                                            readRDS("data/raw/energinet_forecasts.rds"), issues),
+                           by = "issue")
+d <- d[complete.cases(d[, c(base, cols)]) & !is.na(d$dir), ] |>
   mutate(date = as_date(with_tz(time, "Europe/Copenhagen")))
 
 window <- 365
@@ -35,8 +41,8 @@ out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
   if (nrow(test) == 0) return(NULL)
   P <- list(clim    = clim_probs(train, test),
             persist = persist_probs(train, test),
-            mnl     = mnl_probs(train, test, extra = intraday_cols),
-            xgb     = xgb_probs(train, test, as.integer(as_date(R)), cols = c(base, intraday_cols, "lead")))
+            mnl     = mnl_probs(train, test, extra = cols),
+            xgb     = xgb_probs(train, test, as.integer(as_date(R)), cols = c(base, cols, "lead")))
   P$ens <- (P$mnl + P$xgb) / 2
   bind_rows(lapply(names(P), \(m) tibble(issue = test$issue, time = test$time, bucket = b,
                                          lead = test$lead, dir = test$dir, model = m,
@@ -45,7 +51,7 @@ out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)
-saveRDS(fc, "data/processed/intraday_forecasts.rds")
+saveRDS(fc, paste0("data/processed/intraday_forecasts", if (use_rt) "_rt", ".rds"))
 fc |>
   mutate(ll = log_loss(cbind(down, none, up), dir)) |>
   group_by(bucket, model) |>
