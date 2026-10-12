@@ -66,24 +66,46 @@ calibration <- fc |>
   summarise(n = n(), forecast = mean(p), observed = mean(hit), .groups = "drop") |>
   filter(n >= 50)
 
-# spread (day-ahead): pinball loss, error of the median and coverage of the 80% band
-sp <- readRDS("data/processed/spread_forecasts.rds") |> filter(date %in% days)
+# spread: pinball loss, coverage of the 80% band, and the value of picking a side with the expected
+# spread (eur/mwh per quarter), for the day-ahead and the intraday forecasts
+sp <- bind_rows(
+  readRDS("data/processed/spread_forecasts.rds") |> mutate(horizon = "day-ahead"),
+  readRDS("data/processed/intraday_spread_forecasts.rds") |> mutate(horizon = paste0(bucket - 1, "-", bucket, "h"))) |>
+  filter(date %in% days) |>
+  mutate(model = sub("^mix_", "", model))
 Q  <- as.matrix(sp[, paste0("q", taus * 100)])
-spread_scores <- sp |>
-  mutate(pinball = pinball(Q, spread), abs_err = abs(spread - q50),
-         inside = spread >= q10 & spread <= q90,
-         period = if_else(date >= rule_date, "new rule", "old rule")) |>
-  (\(x) bind_rows(x, mutate(x, period = "all")))() |>
-  group_by(period, model) |>
-  summarise(pinball = mean(pinball), mae_median = mean(abs_err), cover_80 = mean(inside),
-            .groups = "drop")
-print(spread_scores, n = Inf)
+sp <- sp |>
+  mutate(pinball = pinball(Q, spread), inside = spread >= q10 & spread <= q90,
+         value = side_value(mean, spread), period = if_else(date >= rule_date, "new rule", "old rule"))
+spread_scores <- bind_rows(sp, mutate(sp, period = "all")) |>
+  group_by(horizon, period, model) |>
+  summarise(pinball = mean(pinball), cover_80 = mean(inside), value = mean(value), .groups = "drop") |>
+  group_by(horizon, period) |>
+  mutate(skill = 1 - pinball / pinball[model == "clim"]) |>
+  ungroup() |>
+  arrange(match(horizon, horizons), period, pinball)
+print(spread_scores |> filter(period == "all"), n = Inf)
+spread_daily <- sp |>
+  filter(model %in% c("ens", "clim")) |>
+  group_by(horizon, date, model) |>
+  summarise(pinball = mean(pinball), value = mean(value), .groups = "drop") |>
+  pivot_wider(names_from = model, values_from = c(pinball, value))
+spread_tests <- bind_rows(lapply(horizons, \(h) {
+  x <- spread_daily[spread_daily$horizon == h, ]
+  bind_rows(lapply(c("pinball", "value"), \(v) {
+    d <- x[[paste0(v, "_ens")]] - x[[paste0(v, "_clim")]]
+    r <- dm_test(d)
+    tibble(horizon = h, metric = v, diff = mean(d), dm_stat = r[["stat"]], dm_p = r[["p"]])
+  }))
+}))
+print(spread_tests)
 
 dir.create("results", showWarnings = FALSE)
 write_csv(scores, "results/direction_scores.csv")
 write_csv(tests, "results/direction_tests.csv")
 write_csv(calibration, "results/calibration.csv")
 write_csv(spread_scores, "results/spread_scores.csv")
+write_csv(spread_tests, "results/spread_tests.csv")
 write_csv(tibble(name = c("from", "to", "days", "rule_change"),
                  value = c(format(min(fc$date)), format(max(fc$date)), length(days), format(rule_date))),
           "results/backtest_info.csv")

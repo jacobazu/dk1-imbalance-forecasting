@@ -48,6 +48,7 @@ scores <- read_if("results/direction_scores.csv")
 tests  <- read_if("results/direction_tests.csv")
 calib  <- read_if("results/calibration.csv")
 spread <- read_if("results/spread_scores.csv")
+sptest <- read_if("results/spread_tests.csv")
 info   <- read_if("results/backtest_info.csv")
 info_v <- function(n) info$value[info$name == n]
 
@@ -155,11 +156,28 @@ rule_txt <- if (has_eval) {
                 "about twice as often. Skill before / after it: next hour %s / %s, day-ahead %s / %s."),
           format(as_date(info_v("rule_change")), "%d %B %Y"), pct(o, 1), pct(n, 1), pct(od, 1), pct(nd, 1))
 } else ""
-spread_txt <- if (!is.null(spread)) {
-  a <- spread |> filter(period == "all")
-  sprintf(paste("Spread (day-ahead): the benchmark's average pinball loss is %.1f, the ensemble's %.1f.",
-                "With a perfect direction forecast it would be %.1f, so nearly all of the spread uncertainty is about the direction."),
-          a$pinball[a$model == "clim"], a$pinball[a$model == "mix_ens"], a$pinball[a$model == "perfect"])
+has_spread <- !is.null(spread) && "horizon" %in% names(spread)
+sp_of <- function(h, m, v = "pinball") spread[[v]][spread$horizon == h & spread$model == m & spread$period == "all"]
+sp_p  <- function(h, v) sptest$dm_p[sptest$horizon == h & sptest$metric == v]
+eur1  <- function(x) paste0(if (x < 0) "−" else "", format(round(abs(x), 1), nsmall = 1), " €/MWh")
+spread_txt <- if (has_spread) {
+  sprintf(paste("The spread forecast's pinball loss is %s lower than the benchmark's for the next hour and %s",
+                "lower for tomorrow. With the direction known in advance it would be %s lower, so most of the",
+                "uncertainty about the spread is about the direction."),
+          pct(sp_of("0-1h", "ens", "skill"), 1), pct(sp_of("day-ahead", "ens", "skill"), 1),
+          pct(sp_of("day-ahead", "perfect", "skill"), 0))
+} else ""
+value_txt <- if (has_spread) {
+  sprintf(paste("Each quarter, settle 1 MWh at the imbalance price instead of the spot price when the expected",
+                "spread is positive, and the other way round when it is negative. With the ensemble's expected",
+                "spread that earns %s on average for the next hour (DM %s) and %s for tomorrow (DM %s), against",
+                "%s and %s with the benchmark, and %s if the direction were known in advance.",
+                "It shows how useful the expected spread is for a decision, not a strategy that could be run as is:",
+                "positions are fixed when the markets close, and deliberate imbalances are not allowed."),
+          eur1(sp_of("0-1h", "ens", "value")), p_txt(sp_p("0-1h", "value")),
+          eur1(sp_of("day-ahead", "ens", "value")), p_txt(sp_p("day-ahead", "value")),
+          eur1(sp_of("0-1h", "clim", "value")), eur1(sp_of("day-ahead", "clim", "value")),
+          eur1(sp_of("0-1h", "perfect", "value")))
 } else ""
 ```
 
@@ -276,9 +294,9 @@ if (has_da) prob_chart(de, "", day = TRUE) else cat("No day-ahead forecast yet."
 if (has_da) spread_chart(de, "", day = TRUE)
 ```
 
-# Accuracy
+# Accuracy {scrolling="true"}
 
-## Row {height=55%}
+## Row {height=520px}
 
 ```{r}
 #| title: "How much lower the log loss is than the benchmark, by how far ahead"
@@ -314,7 +332,7 @@ if (has_eval) {
 
 :::
 
-## Row {height=45%}
+## Row {height=470px}
 
 ```{r}
 #| title: "Scores (all test days)"
@@ -349,6 +367,36 @@ if (!is.null(calib)) {
            hovermode = "closest", legend = list(orientation = "v", x = 1.02, y = 1))
 }
 ```
+
+## Row {height=380px}
+
+```{r}
+#| title: "Spread forecast (imbalance price minus spot price), by how far ahead"
+if (has_spread) {
+  spread |>
+    filter(period == "all", model %in% c("ens", "clim", "perfect")) |>
+    select(horizon, model, pinball, value) |>
+    pivot_wider(names_from = model, values_from = c(pinball, value)) |>
+    left_join(sptest |> select(horizon, metric, dm_p) |> pivot_wider(names_from = metric, values_from = dm_p,
+                                                                       names_prefix = "p_"), by = "horizon") |>
+    mutate(h = factor(horizon_labels[horizon], levels = horizon_labels)) |>
+    arrange(h) |>
+    transmute(Horizon = as.character(h), `Pinball ensemble` = sprintf("%.1f", pinball_ens),
+              `Pinball benchmark` = sprintf("%.1f", pinball_clim), Skill = pct(1 - pinball_ens / pinball_clim, 1),
+              `DM p` = ifelse(p_pinball < 0.001, "<0.001", format(round(p_pinball, 3), nsmall = 3)),
+              `Value ensemble` = sprintf("%.1f", round(value_ens, 1) + 0),
+              `Value benchmark` = sprintf("%.1f", round(value_clim, 1) + 0),
+              `DM p ` = ifelse(p_value < 0.001, "<0.001", format(round(p_value, 3), nsmall = 3)),
+              `Value, direction known` = sprintf("%.1f", value_perfect)) |>
+    knitr::kable(align = "lrrrrrrrr")
+}
+```
+
+::: {.card title="Value of the expected spread (€/MWh)"}
+
+`r value_txt`
+
+:::
 
 # Track record
 
@@ -453,16 +501,20 @@ shape over the day); wind and solar forecasts made 48 hours ahead (Open-Meteo); 
 per hour ahead, trained on the year before and refitted once a week. Benchmarks: how often each direction happened in that hour
 over the last 28 days, and persistence (what followed the last known direction at that lead time).
 
-**Spread.** A mixture: the spreads of the last 60 days in up-regulated quarters weighted by the
-probability of up, in down-regulated quarters weighted by the probability of down, and 0 for no
-regulation.
+**Spread.** A mixture: the 300 spreads in up-regulated quarters of the last 60 days with the closest
+spot price, weighted by the probability of up, the same for down, and 0 for no regulation. The size of
+the spread grows with the spot price, especially for down-regulation.
 
-**Evaluation.** Log loss and Brier score for the direction, pinball loss for the spread,
+**Evaluation.** Log loss and Brier score for the direction, pinball loss and the value of picking a side
+for the spread,
 Diebold-Mariano tests on the daily average loss. The real-time inputs are only used for the first hour
 because the backtest showed they help there and not further ahead. Energinet's newer wind and solar
 forecasts for the hour being forecast (the 5-hour-ahead forecast, used only from 4 hours before the
 hour, when its last part is published) were also tested and made no difference, so they are not used.
 Most likely the market already trades on them, and the imbalance is what is left after that.
+Recalibrating the probabilities on the last 60 days of forecasts helped after March 2026 but not before,
+so it is not used either. The spread method, the newer forecasts and the recalibration were decided on
+the months before March 2026 and checked on the months after.
 
 **Data:** [Energi Data Service](https://www.energidataservice.dk) (Energinet), weather by
 [Open-Meteo](https://open-meteo.com).<br>

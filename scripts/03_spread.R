@@ -1,7 +1,7 @@
 # spread backtest: imbalance price - spot price for each quarter of day D, made at 14:00 on D-1
-# each direction model's probabilities mixed with the spreads of the last 60 days per direction,
-# benchmark = all spreads in the same hour over the last 28 days
-# perfect = the mixture with the true direction, how good it could get with a perfect direction
+# each direction model's probabilities mixed with the spreads of the last 60 days known at 12:00 the
+# day before (same direction, closest spot price), benchmark = all spreads in the same hour over the
+# last 28 days. perfect = the mixture with the true direction, how good it could get
 
 library(dplyr)
 library(tidyr)
@@ -17,18 +17,20 @@ known <- q |> filter(!is.na(dir), !is.na(spread))
 dirfc <- readRDS("data/processed/direction_forecasts.rds")
 
 out <- lapply(sort(unique(dirfc$date)), \(D) {
-  train <- known[known$date >= D - 60 & (known$date <= D - 2 | (known$date == D - 1 & known$hour < 12)), ]
-  v_down <- train$spread[train$dir == -1]
-  v_up   <- train$spread[train$dir == 1]
-  test   <- known[known$date == D, ]
+  until <- as_datetime(paste(D - 1, "12:00:00"), tz = "Europe/Copenhagen")
+  test  <- known[known$date == D, ]
+  if (nrow(test) == 0) return(NULL)
+  pools <- spread_pools(known, until)
+  down  <- near_spot(pools$down, test$spot)
+  up    <- near_spot(pools$up, test$spot)
 
-  res <- list(clim = clim_quantiles(train, test))
-  for (m in unique(dirfc$model)) {
-    P <- dirfc |> filter(date == D, model == m) |> select(time, down, none, up)
-    P <- as.matrix(P[match(test$time, P$time), c("down", "none", "up")])
-    res[[paste0("mix_", m)]] <- mixture_quantiles(P, v_down, v_up)
+  res <- list(clim = clim_quantiles(known[known$time < until, ], test))
+  for (m in setdiff(unique(dirfc$model), "clim")) {
+    P <- dirfc |> filter(date == D, model == m)
+    res[[paste0("mix_", m)]] <- mixture_quantiles(as.matrix(P[match(test$time, P$time), c("down", "none", "up")]),
+                                                  down, up)
   }
-  res$perfect <- mixture_quantiles(outer(test$dir, c(down = -1, none = 0, up = 1), "==") * 1, v_down, v_up)
+  res$perfect <- mixture_quantiles(outer(test$dir, c(down = -1, none = 0, up = 1), "==") * 1, down, up)
 
   bind_rows(lapply(names(res), \(m) tibble(time = test$time, date = D, hour = test$hour,
                                            dir = test$dir, spread = test$spread, model = m,
@@ -39,10 +41,9 @@ saveRDS(fc, "data/processed/spread_forecasts.rds")
 
 Q <- as.matrix(fc[, paste0("q", taus * 100)])
 fc |>
-  mutate(pinball = pinball(Q, spread), abs_err_median = abs(spread - q50),
-         inside = spread >= q10 & spread <= q90,
+  mutate(pinball = pinball(Q, spread), inside = spread >= q10 & spread <= q90,
+         value = side_value(mean, spread),
          period = if_else(date >= as_date("2026-03-04"), "new rule", "old rule")) |>
   group_by(period, model) |>
-  summarise(pinball = mean(pinball), mae_median = mean(abs_err_median), cover_80 = mean(inside),
-            .groups = "drop") |>
+  summarise(pinball = mean(pinball), cover_80 = mean(inside), value = mean(value), .groups = "drop") |>
   print(n = Inf)

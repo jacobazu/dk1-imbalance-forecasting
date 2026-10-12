@@ -36,14 +36,9 @@ fit_models <- function(data, as_of, window = 365) {
        intraday = intraday)
 }
 
-# recent spreads per direction, the last 60 days known at time `known_until`
-spread_pools <- function(q, known_until) {
-  k <- q[!is.na(q$dir) & !is.na(q$spread) & q$time < known_until & q$time >= known_until - days(60), ]
-  list(down = k$spread[k$dir == -1], up = k$spread[k$dir == 1])
-}
-
+# spread quantiles and mean for each forecast row (needs spot, down, none, up), see R/spread.R
 add_spread <- function(fc, pools) {
-  Q <- mixture_quantiles(as.matrix(fc[, c("down", "none", "up")]), pools$down, pools$up)
+  Q <- spread_forecast(as.matrix(fc[, c("down", "none", "up")]), fc$spot, pools)
   bind_cols(fc, as_tibble(Q[, c("q10", "q50", "q90", "mean")]))
 }
 
@@ -60,7 +55,7 @@ forecast_intraday <- function(models, data, issue) {
     P <- list(clim = clim_probs(known, test), mnl = pred_mnl(m$mnl, test), xgb = pred_xgb(m$xgb, test))
     P$ens <- (P$mnl + P$xgb) / 2
     bind_rows(lapply(c("ens", "clim"), \(k) tibble(issue = issue, time = test$time, bucket = b,
-                                                   model = k, as_tibble(P[[k]]))))
+                                                   model = k, spot = test$spot, as_tibble(P[[k]]))))
   })) |>
     group_by(model) |>
     group_modify(\(x, k) add_spread(x, pools)) |>
@@ -77,7 +72,7 @@ forecast_dayahead <- function(models, data, D) {
             xgb = pred_xgb(models$dayahead$xgb, test))
   P$ens <- (P$mnl + P$xgb) / 2
   pools <- spread_pools(q, as_datetime(paste(D - 1, "12:00:00"), tz = "Europe/Copenhagen"))
-  bind_rows(lapply(c("ens", "clim"), \(k) tibble(date = D, time = test$time, model = k,
+  bind_rows(lapply(c("ens", "clim"), \(k) tibble(date = D, time = test$time, model = k, spot = test$spot,
                                                  as_tibble(P[[k]])))) |>
     group_by(model) |>
     group_modify(\(x, k) add_spread(x, pools)) |>
