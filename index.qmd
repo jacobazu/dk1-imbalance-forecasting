@@ -172,8 +172,10 @@ value_txt <- if (has_spread) {
                 "spread is positive, and the other way round when it is negative. With the ensemble's expected",
                 "spread that earns %s on average for the next hour (DM %s) and %s for tomorrow (DM %s), against",
                 "%s and %s with the benchmark, and %s if the direction were known in advance.",
-                "It shows how useful the expected spread is for a decision, not a strategy that could be run as is:",
-                "positions are fixed when the markets close, and deliberate imbalances are not allowed."),
+                "In practice a balance responsible party uses this to decide whether to close an expected",
+                "imbalance in the intraday market or leave it to the imbalance settlement. The price to compare",
+                "with there is the intraday price, which isn't public, so the spot price stands in for it: this",
+                "measures how useful the expected spread is, not a strategy that could be run as is."),
           eur1(sp_of("0-1h", "ens", "value")), p_txt(sp_p("0-1h", "value")),
           eur1(sp_of("day-ahead", "ens", "value")), p_txt(sp_p("day-ahead", "value")),
           eur1(sp_of("0-1h", "clim", "value")), eur1(sp_of("day-ahead", "clim", "value")),
@@ -483,16 +485,18 @@ if (has_live) {
 ::: {.card title="How it works"}
 
 **What is forecast.** In each quarter-hour, Energinet balances DK1 by activating mFRR reserves up or
-down. The direction of that activation sets the imbalance price: above the spot price when the system
-is short (up-regulation), below it when the system is long (down-regulation), and equal to it when
-nothing is activated. The models give the probability of each direction, and a forecast of the spread
+down. The direction of that activation sets the imbalance price: usually above the spot price when the
+system is short (up-regulation), below it when the system is long (down-regulation), and equal to it
+when nothing is activated. The models give the probability of each direction, and a forecast of the spread
 between the imbalance price and the spot price.
 
 **When.** Every three hours, for the 16 quarters of the next 4 hours (every hour in the backtest),
 using the published imbalance data up to the quarter that started an hour before, and for the first
 hour also the real-time state up to ten minutes before (aFRR activation, wind and solar production
 against Energinet's forecast, DK1 cross-border flows). Once a day after the day-ahead auction, for all
-quarters of tomorrow, using the imbalance data up to noon.
+quarters of tomorrow, using the imbalance data up to noon. For the next hour there is little time left
+to trade (cross-border intraday trading closes an hour before delivery), so that forecast is mostly
+for assets that can react on their own; two to four hours ahead there is still time to trade on it.
 
 **Inputs.** Hour, quarter, weekday and holidays; the spot price of the quarter (level, negative,
 shape over the day); wind and solar forecasts made 48 hours ahead (Open-Meteo); recent imbalances.
@@ -507,7 +511,8 @@ the spread grows with the spot price, especially for down-regulation.
 
 **Evaluation.** Log loss and Brier score for the direction, pinball loss and the value of picking a side
 for the spread,
-Diebold-Mariano tests on the daily average loss. The real-time inputs are only used for the first hour
+Diebold-Mariano tests on the daily average loss, with a Newey-West variance over one week of lags
+because good and bad days come in runs. The real-time inputs are only used for the first hour
 because the backtest showed they help there and not further ahead. Energinet's newer wind and solar
 forecasts for the hour being forecast (the 5-hour-ahead forecast, used only from 4 hours before the
 hour, when its last part is published) were also tested and made no difference, so they are not used.

@@ -40,7 +40,8 @@ much lower the log loss is than the benchmark:
 | 3–4 h | 2.0% | 1.5% | 1.6% | −1.1% |
 | Day-ahead | 1.5% | 1.2% | 0.6% | |
 
-The ensemble beats the benchmark and both single models at every horizon (Diebold-Mariano, p < 0.01).
+The ensemble beats the benchmark and both single models at every horizon (Diebold-Mariano with a
+Newey-West variance, since good and bad days come in runs, p < 0.05).
 The gains are small: imbalances are the errors in everyone's plans, so most of them can't be seen
 coming from public data. Energinet's updated wind and solar forecasts for the hour ahead didn't help
 either (tested without look-ahead: only used from when their last part is published), probably because
@@ -51,8 +52,10 @@ hour and 2.3% lower for tomorrow (p < 0.001). Picking the side of the spread wit
 at the imbalance price instead of the spot price when the expected spread is positive, and the other
 way round when it is negative) earns 12.5 €/MWh on average for the next hour, against about zero for
 the benchmark and about 52 €/MWh if the direction were known in advance. For tomorrow it is 1.1 €/MWh,
-which is not significant. This measures how useful the forecast is for a decision; it isn't a strategy
-that could be run as is.
+which is not significant. In practice this is the decision of a balance responsible party whether to
+close an expected imbalance in the intraday market or leave it to the imbalance settlement; the
+intraday price isn't public, so the spot price stands in for it. It measures how useful the forecast
+is, not a strategy that could be run as is.
 
 The spread method was chosen on the months before March 2026 and checked on the months after. The
 current numbers and the live track record are on the dashboard.

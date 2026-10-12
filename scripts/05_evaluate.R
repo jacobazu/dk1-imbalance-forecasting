@@ -36,10 +36,14 @@ scores <- bind_rows(fc, mutate(fc, period = "all")) |>
   arrange(match(horizon, horizons), period, log_loss)
 print(scores |> filter(period == "all"), n = Inf)
 
-# diebold-mariano on the daily average log loss, each model vs the benchmark and the ensemble vs the rest
-dm_test <- function(d) {
+# diebold-mariano on the daily average loss, each model vs the benchmark and the ensemble vs the rest.
+# newey-west variance with one week of lags: daily loss differences are autocorrelated
+dm_test <- function(d, lag = 7) {
   n <- length(d)
-  stat <- mean(d) / sqrt(var(d) / n) * sqrt((n - 1) / n)
+  u <- d - mean(d)
+  v <- sum(u^2) / n
+  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
+  stat <- mean(d) / sqrt(v / n) * sqrt((n - 1) / n)
   c(stat = stat, p = 2 * pt(-abs(stat), df = n - 1))
 }
 daily <- fc |>
