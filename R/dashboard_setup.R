@@ -121,10 +121,8 @@ has_eval <- !is.null(scores)
 eval_txt <- if (has_eval) {
   s1 <- skill_of("0-1h"); s4 <- skill_of("3-4h"); sd <- skill_of("day-ahead")
   t1 <- test_of("0-1h"); td <- test_of("day-ahead")
-  sprintf(paste("The ensemble's log loss is %s lower than the benchmark for the next hour (DM %s),",
-                "%s lower three to four hours ahead and %s lower for tomorrow (DM %s).",
-                "The closer to delivery, the more there is to predict, but even the next hour is far from certain:",
-                "imbalances are the errors in everyone's plans, so most of them are surprises."),
+  sprintf(paste("Log loss %s lower than the benchmark for the next hour (DM %s), %s three to four hours ahead",
+                "and %s for tomorrow (DM %s). Imbalances are the errors in everyone's plans, so most are surprises."),
           pct(s1, 1), p_txt(t1$dm_p), pct(s4, 1), pct(sd, 1), p_txt(td$dm_p))
 } else ""
 period_txt <- if (!is.null(info)) sprintf("Backtest %s to %s, %s days, all horizons on the same days.",
@@ -135,19 +133,15 @@ sp_of <- function(h, m, v = "pinball") spread[[v]][spread$horizon == h & spread$
 sp_p  <- function(h, v) sptest$dm_p[sptest$horizon == h & sptest$metric == v]
 eur1  <- function(x) paste0(if (x < 0) "−" else "", format(round(abs(x), 1), nsmall = 1), " €/MWh")
 spread_txt <- if (has_spread) {
-  sprintf(paste("The spread forecast's pinball loss is %s lower than the benchmark's for the next hour and %s",
-                "lower for tomorrow. With the direction known in advance it would be %s lower, so most of the",
-                "uncertainty about the spread is about the direction."),
+  sprintf(paste("Spread: pinball loss %s lower for the next hour and %s for tomorrow. Knowing the direction would",
+                "make it %s lower, so most of the uncertainty is the direction."),
           pct(sp_of("0-1h", "ens", "skill"), 1), pct(sp_of("day-ahead", "ens", "skill"), 1),
           pct(sp_of("day-ahead", "perfect", "skill"), 0))
 } else ""
 value_txt <- if (has_spread) {
-  sprintf(paste("A lower pinball loss doesn't say if the forecast is worth anything, so it is also tested",
-                "on a decision: each quarter, settle 1 MWh at the imbalance price instead of the spot price",
-                "when the expected spread is positive, and the other way round when it is negative. That earns",
-                "%s on average for the next hour (DM %s) and %s for tomorrow (DM %s), against %s and %s with",
-                "the benchmark, and %s if the direction were known in advance. The intraday price isn't public,",
-                "so the spot price stands in for it: this measures how useful the forecast is, not a strategy."),
+  sprintf(paste("Picking a side with the expected spread (1 MWh at the imbalance price or at spot) earns %s for",
+                "the next hour (DM %s) and %s for tomorrow (DM %s). The benchmark earns %s and %s, knowing the",
+                "direction %s. Spot stands in for the intraday price, which isn't public."),
           eur1(sp_of("0-1h", "ens", "value")), p_txt(sp_p("0-1h", "value")),
           eur1(sp_of("day-ahead", "ens", "value")), p_txt(sp_p("day-ahead", "value")),
           eur1(sp_of("0-1h", "clim", "value")), eur1(sp_of("day-ahead", "clim", "value")),

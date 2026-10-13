@@ -221,48 +221,22 @@ if (has_live) {
 
 ::: {.card title="How it works"}
 
-**What is forecast.** In each quarter-hour, Energinet balances DK1 by activating mFRR reserves up or
-down. The direction of that activation sets the imbalance price: usually above the spot price when the
-system is short (up-regulation), below it when the system is long (down-regulation), and equal to it
-when nothing is activated. The models give the probability of each direction, and a forecast of the spread
-between the imbalance price and the spot price.
+**What is forecast.** Each quarter-hour Energinet balances DK1 by activating reserves up or down. The direction
+sets the imbalance price: above spot when the system is short, below when it is long. The models give the chance
+of each direction and the spread between the imbalance price and spot.
 
-**When.** Every three hours, for the 16 quarters of the next 4 hours (every hour in the backtest),
-using the published imbalance data up to the quarter that started an hour before, and for the first
-hour also the real-time state up to ten minutes before (aFRR activation, wind and solar production
-against Energinet's forecast, DK1 cross-border flows). Once a day after the day-ahead auction, for all
-quarters of tomorrow, using the imbalance data up to noon. For the next hour there is little time left
-to trade (cross-border intraday trading closes an hour before delivery), so that forecast is mostly
-for assets that can react on their own; two to four hours ahead there is still time to trade on it.
+**When.** Every three hours for the next 4 hours, and once a day after the auction for all of tomorrow.
 
-**Inputs.** Hour, quarter, weekday and holidays; the spot price of the quarter (level, negative,
-shape over the day); wind and solar forecasts made 48 hours ahead (Open-Meteo); recent imbalances.
+**Inputs.** Calendar, the spot price, wind and solar forecasts made 48 hours ahead and recent imbalances. For the
+next hour also the real-time state of the grid.
 
-**Models.** A multinomial lasso (lambda by BIC), XGBoost, and their average (the ensemble). One model
-per hour ahead, trained on the year before and refitted once a week. Benchmark: how often each direction
-happened in that hour over the last 28 days.
+**Models.** A multinomial lasso and XGBoost, one per hour ahead, refit weekly. The forecast is their average.
+Benchmark: how often each direction happened in that hour over the last 28 days.
 
-**Spread.** A mixture: the 300 spreads in up-regulated quarters of the last 60 days with the closest
-spot price, weighted by the probability of up, the same for down, and 0 for no regulation. The size of
-the spread grows with the spot price, especially for down-regulation.
+**Spread.** Recent spreads of the same direction with a similar spot price, weighted by the direction probabilities.
 
-**Evaluation.** Each test answers one question.
-
-- *Is it better than the benchmark?* Log loss for the direction and pinball loss for the spread, the
-  standard scores for probability and quantile forecasts.
-- *Is the difference real or luck?* Diebold-Mariano tests on the daily average loss, with a Newey-West
-  variance over one week of lags because good and bad days come in runs. The same test, ensemble against
-  each model, is why the ensemble is used.
-- *Can the probabilities be taken at face value?* The calibration chart: when the forecast says 40%,
-  it should happen about 40% of the time.
-- *Is it worth anything?* The value of picking a side with the expected spread, since a lower loss
-  alone doesn't say that.
-
-The real-time inputs are only used for the first hour because the backtest showed they help there and
-not further ahead. Energinet's newer wind and solar forecasts for the hour were tested and made no
-difference, most likely because the market already trades on them.
-
-**Backtest:** the scores, tests and calibration are on the [backtest page](backtest.html).
+**Tests.** Log loss and pinball loss against the benchmark, Diebold-Mariano with Newey-West, a calibration chart
+and the value of picking a side. They are on the [backtest page](backtest.html).
 
 **Data:** [Energi Data Service](https://www.energidataservice.dk) (Energinet), weather by
 [Open-Meteo](https://open-meteo.com).<br>
