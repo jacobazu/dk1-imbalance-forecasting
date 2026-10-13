@@ -8,6 +8,8 @@ data/
 .quarto
 index.html
 index_files/
+backtest.html
+backtest_files/
 models/
 _site/
 .Renviron

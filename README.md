@@ -4,7 +4,14 @@ Forecasts of the imbalance in DK1, in R. For each quarter-hour it gives the chan
 
 Dashboard: [jacobazu.github.io/dk1-imbalance-forecasting](https://jacobazu.github.io/dk1-imbalance-forecasting)
 
-- Models: multinomial lasso, XGBoost and their average. The benchmark is how often each direction happened in that hour over the last 28 days.
+Models: multinomial lasso, XGBoost and their average. The benchmark is how often each direction happened in that hour over the last 28 days.
+
+## The real test
+
+A backtest shows that a method would have worked. It doesn't show that it works. I made my choices with the backtest period in view, so the backtest is probably a bit too good. The live forecasts are saved before their quarter starts, so they can't be adjusted afterwards. That's the interesting part, so the dashboard's main page only shows the live forecasts and how they score. The backtest has its own page.
+
+## Backtest
+
 - Next hour: 4.9% lower log loss than the benchmark. Picking a side with the spread forecast earns 12.5 €/MWh.
 - Tomorrow: 1.5% lower log loss, but the value isn't significant.
 
