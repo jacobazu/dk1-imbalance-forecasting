@@ -1,6 +1,4 @@
-# direction backtest: forecast all quarters of day D at 14:00 on D-1
-# models refit every 7 days on the year before (as in the live run), benchmark = last 28 days by hour
-# multinomial lasso, xgboost and their average
+# direction backtest: all quarters of day D at 14:00 on D-1, refit weekly on the year before
 
 library(dplyr)
 library(tidyr)
@@ -24,7 +22,7 @@ refits    <- seq(as_date("2025-11-01"), max(full_days), by = "7 days")
 
 t0 <- Sys.time()
 out <- mclapply(refits, \(R) tryCatch({
-  # fitted at midnight starting day R on the complete days before, used for forecasts made R to R+6
+  # fit on day R, used for forecasts made R to R+6
   train <- q[ok & q$date >= R - window & q$date < R, ]
   m_mnl <- fit_mnl(train)
   m_xgb <- fit_xgb(train, as.integer(R))

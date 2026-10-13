@@ -1,11 +1,10 @@
-# direction models: probabilities of down / none / up for each quarter
-# all return a matrix with columns down, none, up
+# direction models, all return a matrix with columns down, none, up
 
 library(glmnet)
 
 classes <- c(down = -1, none = 0, up = 1)
 
-# benchmark: how often each direction happened in that hour over the last 28 days (+0.5 smoothing)
+# benchmark: share of each direction in that hour over the last 28 days (+0.5 smoothing)
 clim_probs <- function(train, test, days = 28) {
   last <- max(train$date)
   counts <- train |>
@@ -23,8 +22,7 @@ clim_probs <- function(train, test, days = 28) {
   P
 }
 
-# multinomial lasso, lambda chosen by BIC. extra = inputs added to the calendar, spot and weather
-# fit and predict are separate so the live run can use models fitted once a week
+# multinomial lasso, lambda by bic. fit and predict apart, so live can reuse the weekly fit
 da_extra <- c("morning_up", "morning_down", "week_up", "week_down")
 
 fit_mnl <- function(train, extra = da_extra) {
@@ -42,7 +40,7 @@ pred_mnl <- function(m, test) {
 }
 mnl_probs <- function(train, test, extra = da_extra) pred_mnl(fit_mnl(train, extra), test)
 
-# xgboost, fixed settings (no tuning), seed = date of the fit. saved as raw bytes
+# xgboost, fixed settings, seed = fit date
 xgb_dir_params <- list(objective = "multi:softprob", num_class = 3, learning_rate = 0.05,
                        max_depth = 4, min_child_weight = 20, subsample = 0.8,
                        colsample_bytree = 0.8, nthread = 1)
@@ -63,7 +61,7 @@ pred_xgb <- function(m, test) {
 }
 xgb_probs <- function(train, test, seed, cols = feature_cols) pred_xgb(fit_xgb(train, seed, cols), test)
 
-# scores per quarter, probabilities clipped so a single miss can't give an infinite log loss
+# log loss per quarter, probabilities clipped
 log_loss <- function(P, dir) {
   P <- pmax(P, 1e-4); P <- P / rowSums(P)
   -log(P[cbind(seq_along(dir), match(dir, classes))])

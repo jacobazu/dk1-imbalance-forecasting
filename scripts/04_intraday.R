@@ -1,7 +1,4 @@
-# intraday backtest: every hour, the 16 quarters of the next 4 hours
-# published imbalance data up to the quarter that started 60 minutes before, and for the first hour
-# also the real-time state (up to 10 minutes before). one model per hour ahead, refit every 7 days
-# on the year before. benchmark: the 28-day hourly frequencies
+# intraday backtest: every hour, the next 4 hours, one model per hour ahead, refit weekly
 
 library(dplyr)
 library(tidyr)
@@ -19,7 +16,7 @@ q <- make_quarters(imb, transmute(imb, time, spot = SpotPriceEUR), readRDS("data
 issues <- seq(as_datetime("2025-03-12 00:00:00"), max(q$time) - hours(4), by = "hour")
 base <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel", "spot_rank", "spot_diff",
           "spot_neg", "wpow", "solar")
-# real-time inputs only help in the first hour (tested in the backtest), so only used there
+# real-time inputs only help in the first hour, so only used there
 cols_for <- function(b) c(intraday_cols, if (b == 1) realtime_cols)
 d <- make_issues(q, make_state(q, imb), issues) |>
   left_join(make_realtime(readRDS("data/raw/realtime.rds"), readRDS("data/raw/energinet_forecasts.rds"),

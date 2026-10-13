@@ -60,14 +60,14 @@ body,
   padding-top: 1rem;
 }
 
-// long text scrolls inside the card instead of being cut off
+// long text scrolls
 .quarto-dashboard .card-body { overflow-y: auto; }
 
-// remove expand button on cards
+// no expand button
 .bslib-full-screen-enter { display: none !important; }
 
-// kpi tiles, text left and icon right
-// important needed, otherwise quarto stacks the divs
+// kpi tiles
+// needed, else divs stack
 .kpi {
   height: 100%;
   display: flex !important;
@@ -96,7 +96,7 @@ body,
 .kpi-up    { color: #dc2626; font-weight: 700; }
 .kpi-down  { color: #16a34a; font-weight: 700; }
 
-// icon chip in a light tint of the accent colour
+// icon chip
 .kpi-icon {
   flex: 0 0 46px !important;
   width: 46px;
@@ -117,7 +117,7 @@ body,
 .quarto-dashboard table th { border-color: #efe6dc; }
 .quarto-dashboard table > :not(:first-child) { border-top: 1px solid #efe6dc !important; }
 
-// model buttons above the charts
+// model buttons
 .model-buttons {
   position: absolute;
   top: 6px;

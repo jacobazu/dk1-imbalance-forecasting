@@ -1,6 +1,4 @@
-# the live forecasts, same steps as the backtests (02, 03 and 04)
-# models are fitted once a week (fit_models) and used for every forecast that week
-# data = list(imb, spot, rt, fc, weather), see get_live_data() in R/download.R
+# live forecasts, same steps as the backtests, models refit weekly (fit_models)
 
 base_cols <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel", "spot_rank",
                "spot_diff", "spot_neg", "wpow", "solar")
@@ -15,7 +13,7 @@ intraday_rows <- function(data, q, issues) {
     mutate(date = as_date(with_tz(time, "Europe/Copenhagen")))
 }
 
-# fitted at `as_of` on the year before, like the weekly refits in the backtests
+# fit on the year before `as_of`
 fit_models <- function(data, as_of, window = 365) {
   q <- live_quarters(data)
   day <- as_date(with_tz(as_of, "Europe/Copenhagen"))
@@ -36,13 +34,13 @@ fit_models <- function(data, as_of, window = 365) {
        intraday = intraday)
 }
 
-# spread quantiles and mean for each forecast row (needs spot, down, none, up), see R/spread.R
+# spread quantiles and mean per row
 add_spread <- function(fc, pools) {
   Q <- spread_forecast(as.matrix(fc[, c("down", "none", "up")]), fc$spot, pools)
   bind_cols(fc, as_tibble(Q[, c("q10", "q50", "q90", "mean")]))
 }
 
-# next 4 hours from issue time T (published data until T - 60 min, real-time until T - 10 min)
+# next 4 hours from issue time T
 forecast_intraday <- function(models, data, issue) {
   q <- live_quarters(data)
   d <- intraday_rows(data, q, seq(issue - days(30), issue, by = "hour"))

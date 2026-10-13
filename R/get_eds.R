@@ -1,6 +1,6 @@
 library(httr2)
 
-# area = NULL for datasets without price areas, columns = NULL for all columns
+# area = NULL without price areas, columns = NULL for all
 get_eds <- function(dataset, start, end, area = "DK1", columns = NULL) {
   req <- request("https://api.energidataservice.dk/dataset") |>
     req_url_path_append(dataset) |>

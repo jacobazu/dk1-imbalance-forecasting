@@ -1,4 +1,4 @@
-# shared by index.qmd (live) and backtest.qmd: data, results and the numbers in the text
+# shared by index.qmd and backtest.qmd
 
 library(dplyr)
 library(tidyr)
@@ -6,7 +6,7 @@ library(readr)
 library(lubridate)
 library(plotly)
 
-Sys.setlocale("LC_TIME", "C")   # english day and month names, also on a danish computer
+Sys.setlocale("LC_TIME", "C")   # english dates
 
 grey <- "#6b7280"
 ink  <- "#1f2328"
@@ -17,9 +17,9 @@ model_labels <- c(ens = "Ensemble", mnl = "Multinomial lasso", xgb = "XGBoost",
 horizon_labels <- c("0-1h" = "0–1 h", "1-2h" = "1–2 h", "2-3h" = "2–3 h", "3-4h" = "3–4 h",
                     "day-ahead" = "Day-ahead")
 
-# everything below comes from forecasts/ and results/, nothing is typed in by hand
+# all from forecasts/ and results/, nothing typed in
 read_if <- function(f) if (file.exists(f)) read_csv(f, show_col_types = FALSE) else NULL
-# latest forecasts from the logs (forecasts are only added, never changed)
+# latest forecasts from the logs
 intra  <- read_if("forecasts/intraday_log.csv")
 if (!is.null(intra)) intra <- filter(intra, issue == max(issue))
 dayah  <- read_if("forecasts/dayahead_log.csv")
@@ -54,7 +54,7 @@ chart_layout <- function(p, xtitle = "", ytitle = "") {
     config(displayModeBar = FALSE)
 }
 
-# stacked probabilities per quarter, time axis for a whole day, labels for a few hours
+# stacked probabilities per quarter
 prob_chart <- function(fc, xtitle, day = FALSE) {
   fc$x <- if (day) dk(fc$time) else fc$label
   p <- plot_ly(fc, x = ~x)
@@ -104,7 +104,7 @@ if (has_da) {
                                 levels = c("down", "none", "up")))
 }
 
-# live track record: log loss of the ensemble vs the benchmark on the quarters known so far
+# live track record, ensemble vs benchmark
 has_live <- !is.null(live) && nrow(live) > 0
 if (has_live) {
   live_tab <- live |>

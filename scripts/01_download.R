@@ -1,4 +1,4 @@
-# downloading DK1 imbalance prices (15 min, from 4 march 2025) and open-meteo weather forecasts
+# download imbalance prices (from 4 mar 2025) and weather forecasts
 
 library(dplyr)
 library(lubridate)

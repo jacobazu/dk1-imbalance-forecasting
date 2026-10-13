@@ -1,10 +1,10 @@
-# downloads for the live run, all from energi data service except the weather (R/weather.R)
+# downloads for the live run
 
 library(dplyr)
 library(tidyr)
 library(lubridate)
 
-# split a period into chunks so each request stays small
+# small chunks per request
 chunks <- function(from, to, by) {
   s <- seq(as_date(from), as_date(to), by = by)
   tibble(from = s, to = pmin(lead(s, default = as_date(to) + 1), as_date(to) + 1))
@@ -46,7 +46,7 @@ get_energinet_forecasts <- function(from, to) {
   }))
 }
 
-# day-ahead prices per quarter (also for tomorrow once the auction is done)
+# day-ahead prices per quarter
 get_spot <- function(from, to) {
   get_eds("DayAheadPrices", format(as_date(from)), format(as_date(to) + 1)) |>
     transmute(time = ymd_hms(TimeUTC, tz = "UTC"), spot = DayAheadPriceEUR) |>
@@ -54,8 +54,7 @@ get_spot <- function(from, to) {
     arrange(time)
 }
 
-# everything for one run. days = how far back (62 for a forecast, 400 for refitting the models).
-# a forecast only needs the last hour of the real-time data
+# everything for one run, days back: 62 to forecast, 400 to refit
 get_live_data <- function(now, days) {
   today <- as_date(with_tz(now, "Europe/Copenhagen"))
   imb <- get_imbalance(today - days, today + 1)

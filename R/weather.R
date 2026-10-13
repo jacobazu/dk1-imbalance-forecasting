@@ -1,5 +1,5 @@
 # open-meteo sites and download
-# _previous_day2 = forecast made 48 hours before the hour, so before the auction
+# previous_day2 = made 48h before, so before the auction
 
 library(httr2)
 library(dplyr)

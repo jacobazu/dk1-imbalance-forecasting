@@ -1,5 +1,4 @@
-# downloading the near real-time data (power system right now, every minute) and energinet's
-# wind/solar forecasts, for the intraday forecasts. minute data saved as 5-minute averages
+# download real-time data (5-minute averages) and energinet's wind/solar forecasts
 
 library(dplyr)
 library(tidyr)
@@ -26,7 +25,7 @@ rt <- bind_rows(lapply(weeks, \(w) {
   mutate(across(-c(time, n_min), \(x) if_else(is.nan(x), NA_real_, x)))
 saveRDS(rt, "data/raw/realtime.rds")
 
-# energinet wind and solar forecasts, dk1 and dk2 (production above is for all of denmark)
+# energinet wind and solar forecasts, dk1 and dk2
 fc <- bind_rows(lapply(seq(start, end, by = "month"), \(m) {
   message("forecasts ", m)
   Sys.sleep(1)

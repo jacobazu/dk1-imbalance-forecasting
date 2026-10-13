@@ -1,5 +1,4 @@
-# one row per quarter-hour with the target and everything known at 14:00 the day before
-# recent imbalances only up to 12:00 the day before, in case of publication delays
+# one row per quarter-hour with what is known at 14:00 the day before (imbalances up to 12:00)
 
 library(dplyr)
 library(tidyr)
@@ -7,8 +6,7 @@ library(lubridate)
 
 rule_change <- as_datetime("2026-03-04 00:00:00", tz = "Europe/Copenhagen")
 
-# imb = ImbalancePrice rows (with time in utc), spot = data frame with time (utc) and spot (eur)
-# weather = open-meteo hourly (R/weather.R), holidays = dates
+# imb = ImbalancePrice rows, spot = time and spot, weather = open-meteo hourly, holidays = dates
 make_quarters <- function(imb, spot, weather, holidays) {
   w <- weather |>
     transmute(hour_utc = time,
@@ -39,8 +37,7 @@ make_quarters <- function(imb, spot, weather, holidays) {
     mutate(spot_neg = as.numeric(spot < 0))
 }
 
-# imbalance shares known at 14:00 the day before each date
-# morning = the day before until 12:00, week = the same hour on the 7 days before that
+# imbalance shares known at 14:00 the day before: that morning, and the same hour the week before
 add_recent <- function(q) {
   daily_hour <- q |>
     filter(!is.na(dir)) |>
@@ -69,8 +66,7 @@ feature_cols <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel
                   "spot_diff", "spot_neg", "wpow", "solar", "morning_up", "morning_down",
                   "week_up", "week_down")
 
-# dummies for hour, quarter and weekday (for the lasso), spot prices damped with asinh,
-# plus the extra columns as they are
+# dummies for hour, quarter and weekday, spot damped with asinh, plus the extra columns
 model_matrix <- function(df, extra = c("morning_up", "morning_down", "week_up", "week_down")) {
   dummies <- function(x, levels, prefix) {
     m <- outer(x, levels[-1], "==") * 1

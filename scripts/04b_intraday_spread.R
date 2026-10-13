@@ -1,5 +1,4 @@
-# spread for the intraday forecasts (04_intraday.R): the same mixture as the day-ahead spread, with the
-# spreads known at each issue time (up to the quarter that started 60 minutes before)
+# spread for the intraday forecasts, with the spreads known at each issue time
 
 library(dplyr)
 library(tidyr)

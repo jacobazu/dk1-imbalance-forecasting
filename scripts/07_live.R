@@ -1,6 +1,5 @@
-# the live run, every 3 hours: forecast of the next 4 hours, and after the day-ahead auction also of
-# tomorrow. models are refit when they are a week old. forecasts are only added to the logs, never changed
-# LOCAL=1 uses the files in data/raw instead of downloading, NOW = time to run as (for testing)
+# live run every 3 hours: next 4 hours, and tomorrow after the auction. logs are append-only
+# LOCAL=1 uses data/raw, NOW = time to run as (for testing)
 
 library(dplyr)
 library(tidyr)
@@ -22,7 +21,7 @@ now_dk <- with_tz(now, "Europe/Copenhagen")
 issue  <- floor_date(now, "hour")
 local  <- Sys.getenv("LOCAL") == "1"
 
-# local test: the downloaded files, cut at what was published at `now`
+# local test: downloaded files cut at `now`
 local_data <- function(days) {
   from <- now - days(days)
   list(imb     = readRDS("data/raw/imbalance.rds") |> filter(time >= from, time < now - minutes(30)),
@@ -63,7 +62,7 @@ fi <- forecast_intraday(models, data, issue) |> filter(time > now)
 append_log(fi, "forecasts/intraday_log.csv", c("issue", "time", "model"))
 cat("intraday:", nrow(fi) / 2, "quarters from", format(with_tz(issue, "Europe/Copenhagen")), "danish time\n")
 
-# tomorrow, once the auction result is out (all quarters of tomorrow have a spot price)
+# tomorrow, once the auction is done
 tomorrow <- as_date(now_dk) + 1
 n_spot   <- sum(as_date(with_tz(data$spot$time, "Europe/Copenhagen")) == tomorrow)
 done     <- file.exists("forecasts/dayahead_log.csv") &&
@@ -74,7 +73,7 @@ if (n_spot >= 92 && !done) {
   cat("day-ahead forecast for", format(tomorrow), "\n")
 }
 
-# score the logged forecasts whose quarter is now known (added once, never changed)
+# score forecasts whose quarter is now known
 actual <- data$imb |> filter(!is.na(DominatingDirection)) |> transmute(time, dir = DominatingDirection)
 score <- function(log, horizon_of) {
   x <- read_csv(log, show_col_types = FALSE, col_types = cols(made_utc = col_character()))

@@ -1,12 +1,10 @@
-# intraday forecasts: every hour on the hour, for the 16 quarters of the next 4 hours
-# the last known quarter is the one that started 60 minutes before (published ~20 minutes after it ends)
+# intraday: every hour, the 16 quarters of the next 4 hours, last known quarter started 60 min before
 
 library(dplyr)
 library(tidyr)
 library(lubridate)
 
-# state of the system at each quarter, used as "last known" quarter
-# q = output of make_quarters(), imb = the ImbalancePrice rows
+# system state per quarter, used as the last known quarter
 make_state <- function(q, imb) {
   grid <- tibble(time = seq(min(q$time), max(q$time), by = "15 min"))
   x <- grid |>
@@ -27,8 +25,7 @@ make_state <- function(q, imb) {
 state_cols <- c("last_down", "last_up", "up_1h", "down_1h", "up_4h", "down_4h", "sd_last", "sd_1h",
                 "afrr_up_1h", "afrr_down_1h", "spread_last", "spread_1h")
 
-# one row per issue hour and target quarter: lead = quarters after the last known one (4 to 19),
-# bucket = hours ahead of the issue time (1 = the first hour)
+# one row per issue hour and target quarter, lead = quarters after the last known, bucket = hours ahead
 make_issues <- function(q, state, issue_times) {
   crossing(issue = issue_times, k = 0:15) |>
     mutate(time = issue + minutes(15 * k), last_time = issue - minutes(60), lead = k + 4,
@@ -40,9 +37,7 @@ make_issues <- function(q, state, issue_times) {
 }
 intraday_cols <- c(state_cols, "lead_in_hour", "down_x_lead", "up_x_lead")
 
-# real-time state at each issue time T, from power system right now (5-minute averages):
-# everything up to 10 minutes before T. forecast errors = actual wind/solar in denmark minus
-# energinet's day-ahead forecast (dk1 + dk2)
+# real-time state up to 10 min before each issue time, errors = actual wind/solar minus energinet's forecast
 make_realtime <- function(rt, fc, issue_times) {
   da <- fc |>
     transmute(hour = ymd_hms(HourUTC, tz = "UTC"), type = ForecastType, da = ForecastDayAhead) |>
@@ -58,7 +53,7 @@ make_realtime <- function(rt, fc, issue_times) {
               flow_de = Exchange_DK1_DE, flow_no = Exchange_DK1_NO, flow_se = Exchange_DK1_SE,
               flow_nl = Exchange_DK1_NL, flow_dk2 = Exchange_DK1_DK2) |>
     arrange(time)
-  # mean over the k 5-minute values up to 10 minutes before each issue time
+  # mean of the last k 5-minute values
   win <- function(v, k) {
     idx <- findInterval(as.numeric(issue_times - minutes(10)), as.numeric(x$time))
     cs <- c(0, cumsum(ifelse(is.na(v), 0, v))); cn <- c(0, cumsum(!is.na(v)))

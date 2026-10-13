@@ -1,5 +1,4 @@
-# evaluation of the direction and spread backtests, small csv files for the dashboard
-# horizons: day-ahead (made 14:00 the day before) and intraday 0-1h, 1-2h, 2-3h, 3-4h ahead
+# scores and tests for the dashboard, day-ahead and 0-1h to 3-4h
 
 library(dplyr)
 library(tidyr)
@@ -22,7 +21,7 @@ fc <- bind_rows(da, id) |>
   mutate(ll = log_loss(cbind(down, none, up), dir))
 horizons <- c("0-1h", "1-2h", "2-3h", "3-4h", "day-ahead")
 
-# scores per horizon and model, skill = how much lower the log loss is than the benchmark
+# scores per horizon and model, skill = lower log loss than the benchmark
 scores <- fc |>
   group_by(horizon, model) |>
   summarise(days = n_distinct(date), log_loss = mean(ll), .groups = "drop") |>
@@ -32,8 +31,7 @@ scores <- fc |>
   arrange(match(horizon, horizons), log_loss)
 print(scores, n = Inf)
 
-# diebold-mariano on the daily average loss, each model vs the benchmark and the ensemble vs the rest.
-# newey-west variance with one week of lags: daily loss differences are autocorrelated
+# diebold-mariano on the daily average loss, newey-west with one week of lags
 dm_test <- function(d, lag = 7) {
   n <- length(d)
   u <- d - mean(d)
@@ -56,7 +54,7 @@ tests <- bind_rows(lapply(horizons, \(h) bind_rows(lapply(pairs, \(ab) {
 }))))
 print(tests, n = Inf)
 
-# calibration of the ensemble: forecast probability in bins vs how often it happened
+# calibration: forecast probability vs how often it happened
 calibration <- fc |>
   filter(model == "ens") |>
   pivot_longer(c(down, none, up), names_to = "class", values_to = "p") |>
@@ -65,8 +63,7 @@ calibration <- fc |>
   summarise(n = n(), forecast = mean(p), observed = mean(hit), .groups = "drop") |>
   filter(n >= 50)
 
-# spread: pinball loss and the value of picking a side with the expected spread (eur/mwh per quarter),
-# for the day-ahead and the intraday forecasts
+# spread: pinball loss and the value of picking a side
 sp <- bind_rows(
   readRDS("data/processed/spread_forecasts.rds") |> mutate(horizon = "day-ahead"),
   readRDS("data/processed/intraday_spread_forecasts.rds") |> mutate(horizon = paste0(bucket - 1, "-", bucket, "h"))) |>

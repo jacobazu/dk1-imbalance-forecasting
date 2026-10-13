@@ -1,7 +1,5 @@
-# spread backtest: imbalance price - spot price for each quarter of day D, made at 14:00 on D-1
-# each direction model's probabilities mixed with the spreads of the last 60 days known at 12:00 the
-# day before (same direction, closest spot price), benchmark = all spreads in the same hour over the
-# last 28 days. perfect = the mixture with the true direction, how good it could get
+# spread backtest: day D at 14:00 on D-1, direction probabilities mixed with recent spreads
+# benchmark = all spreads in that hour over 28 days, perfect = the true direction
 
 library(dplyr)
 library(tidyr)
