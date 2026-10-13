@@ -33,10 +33,3 @@ fc <- bind_rows(lapply(seq(start, end, by = "month"), \(m) {
   get_eds("Forecasts_Hour", format(m), format(min(m %m+% months(1), end)), area = c("DK1", "DK2"))
 }))
 saveRDS(fc, "data/raw/energinet_forecasts.rds")
-
-# coverage: first value and share missing after that
-print(bind_rows(lapply(setdiff(names(rt), c("time", "n_min")), \(v) {
-  x <- rt[[v]]; first <- which(!is.na(x))[1]
-  tibble(variable = v, from = rt$time[first], missing_pct = round(100 * mean(is.na(x[first:length(x)])), 2))
-})))
-cat("forecasts:", nrow(fc), "rows,", paste(unique(fc$ForecastType), collapse = ", "), "\n")

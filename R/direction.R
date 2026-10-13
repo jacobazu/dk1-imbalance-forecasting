@@ -68,7 +68,3 @@ log_loss <- function(P, dir) {
   P <- pmax(P, 1e-4); P <- P / rowSums(P)
   -log(P[cbind(seq_along(dir), match(dir, classes))])
 }
-brier <- function(P, dir) {
-  Y <- outer(dir, classes, "==") * 1
-  rowSums((P - Y)^2)
-}

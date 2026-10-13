@@ -45,8 +45,7 @@ dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
 saveRDS(fc, "data/processed/direction_forecasts.rds")
 
 fc |>
-  mutate(ll = log_loss(cbind(down, none, up), dir), bs = brier(cbind(down, none, up), dir),
-         period = if_else(date >= as_date("2026-03-04"), "new rule", "old rule")) |>
-  group_by(period, model) |>
-  summarise(days = n_distinct(date), log_loss = mean(ll), brier = mean(bs), .groups = "drop") |>
-  print(n = Inf)
+  mutate(ll = log_loss(cbind(down, none, up), dir)) |>
+  group_by(model) |>
+  summarise(days = n_distinct(date), log_loss = mean(ll), .groups = "drop") |>
+  print()

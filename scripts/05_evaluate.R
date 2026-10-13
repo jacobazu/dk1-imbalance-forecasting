@@ -8,8 +8,6 @@ library(lubridate)
 source("R/direction.R")
 source("R/spread.R")
 
-rule_date <- as_date("2026-03-04")
-
 da <- readRDS("data/processed/direction_forecasts.rds") |>
   transmute(horizon = "day-ahead", time, date, dir, model, down, none, up)
 id <- readRDS("data/processed/intraday_forecasts.rds") |>
@@ -21,20 +19,18 @@ days <- unique(da$date)
 days <- days[days %in% id$date]
 fc <- bind_rows(da, id) |>
   filter(date %in% days) |>
-  mutate(ll = log_loss(cbind(down, none, up), dir),
-         bs = brier(cbind(down, none, up), dir),
-         period = if_else(date >= rule_date, "new rule", "old rule"))
+  mutate(ll = log_loss(cbind(down, none, up), dir))
 horizons <- c("0-1h", "1-2h", "2-3h", "3-4h", "day-ahead")
 
 # scores per horizon and model, skill = how much lower the log loss is than the benchmark
-scores <- bind_rows(fc, mutate(fc, period = "all")) |>
-  group_by(horizon, period, model) |>
-  summarise(days = n_distinct(date), log_loss = mean(ll), brier = mean(bs), .groups = "drop") |>
-  group_by(horizon, period) |>
+scores <- fc |>
+  group_by(horizon, model) |>
+  summarise(days = n_distinct(date), log_loss = mean(ll), .groups = "drop") |>
+  group_by(horizon) |>
   mutate(skill = 1 - log_loss / log_loss[model == "clim"]) |>
   ungroup() |>
-  arrange(match(horizon, horizons), period, log_loss)
-print(scores |> filter(period == "all"), n = Inf)
+  arrange(match(horizon, horizons), log_loss)
+print(scores, n = Inf)
 
 # diebold-mariano on the daily average loss, each model vs the benchmark and the ensemble vs the rest.
 # newey-west variance with one week of lags: daily loss differences are autocorrelated
@@ -50,8 +46,7 @@ daily <- fc |>
   group_by(horizon, date, model) |>
   summarise(ll = mean(ll), .groups = "drop") |>
   pivot_wider(names_from = model, values_from = ll)
-pairs <- list(c("ens", "clim"), c("mnl", "clim"), c("xgb", "clim"), c("ens", "mnl"), c("ens", "xgb"),
-              c("ens", "persist"))
+pairs <- list(c("ens", "clim"), c("mnl", "clim"), c("xgb", "clim"), c("ens", "mnl"), c("ens", "xgb"))
 tests <- bind_rows(lapply(horizons, \(h) bind_rows(lapply(pairs, \(ab) {
   x <- daily[daily$horizon == h, ]
   if (!all(ab %in% names(x)) || all(is.na(x[[ab[2]]]))) return(NULL)
@@ -70,8 +65,8 @@ calibration <- fc |>
   summarise(n = n(), forecast = mean(p), observed = mean(hit), .groups = "drop") |>
   filter(n >= 50)
 
-# spread: pinball loss, coverage of the 80% band, and the value of picking a side with the expected
-# spread (eur/mwh per quarter), for the day-ahead and the intraday forecasts
+# spread: pinball loss and the value of picking a side with the expected spread (eur/mwh per quarter),
+# for the day-ahead and the intraday forecasts
 sp <- bind_rows(
   readRDS("data/processed/spread_forecasts.rds") |> mutate(horizon = "day-ahead"),
   readRDS("data/processed/intraday_spread_forecasts.rds") |> mutate(horizon = paste0(bucket - 1, "-", bucket, "h"))) |>
@@ -79,16 +74,15 @@ sp <- bind_rows(
   mutate(model = sub("^mix_", "", model))
 Q  <- as.matrix(sp[, paste0("q", taus * 100)])
 sp <- sp |>
-  mutate(pinball = pinball(Q, spread), inside = spread >= q10 & spread <= q90,
-         value = side_value(mean, spread), period = if_else(date >= rule_date, "new rule", "old rule"))
-spread_scores <- bind_rows(sp, mutate(sp, period = "all")) |>
-  group_by(horizon, period, model) |>
-  summarise(pinball = mean(pinball), cover_80 = mean(inside), value = mean(value), .groups = "drop") |>
-  group_by(horizon, period) |>
+  mutate(pinball = pinball(Q, spread), value = side_value(mean, spread))
+spread_scores <- sp |>
+  group_by(horizon, model) |>
+  summarise(pinball = mean(pinball), value = mean(value), .groups = "drop") |>
+  group_by(horizon) |>
   mutate(skill = 1 - pinball / pinball[model == "clim"]) |>
   ungroup() |>
-  arrange(match(horizon, horizons), period, pinball)
-print(spread_scores |> filter(period == "all"), n = Inf)
+  arrange(match(horizon, horizons), pinball)
+print(spread_scores, n = Inf)
 spread_daily <- sp |>
   filter(model %in% c("ens", "clim")) |>
   group_by(horizon, date, model) |>
@@ -110,6 +104,6 @@ write_csv(tests, "results/direction_tests.csv")
 write_csv(calibration, "results/calibration.csv")
 write_csv(spread_scores, "results/spread_scores.csv")
 write_csv(spread_tests, "results/spread_tests.csv")
-write_csv(tibble(name = c("from", "to", "days", "rule_change"),
-                 value = c(format(min(fc$date)), format(max(fc$date)), length(days), format(rule_date))),
+write_csv(tibble(name = c("from", "to", "days"),
+                 value = c(format(min(fc$date)), format(max(fc$date)), length(days))),
           "results/backtest_info.csv")

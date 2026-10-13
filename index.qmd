@@ -32,7 +32,7 @@ ink  <- "#1f2328"
 dir_colors <- c(down = "#2563eb", none = "#cbd5e1", up = "#f97316")
 dir_labels <- c(down = "Down-regulation", none = "No regulation", up = "Up-regulation")
 model_labels <- c(ens = "Ensemble", mnl = "Multinomial lasso", xgb = "XGBoost",
-                  persist = "Persistence", clim = "Benchmark (last 28 days)")
+                  clim = "Benchmark (last 28 days)")
 horizon_labels <- c("0-1h" = "0–1 h", "1-2h" = "1–2 h", "2-3h" = "2–3 h", "3-4h" = "3–4 h",
                     "day-ahead" = "Day-ahead")
 
@@ -57,7 +57,7 @@ eur   <- function(x) paste0(if (x >= 0) "+" else "−", format(round(abs(x)), bi
 p_txt <- function(p) if (p < 0.001) "p < 0.001" else paste("p =", format(round(p, 3), nsmall = 3))
 dk    <- function(t) with_tz(t, "Europe/Copenhagen")
 
-skill_of <- function(h, m = "ens", per = "all") scores$skill[scores$horizon == h & scores$model == m & scores$period == per]
+skill_of <- function(h, m = "ens") scores$skill[scores$horizon == h & scores$model == m]
 test_of  <- function(h, a = "ens", b = "clim") tests[tests$horizon == h & tests$model_a == a & tests$model_b == b, ]
 
 chart_layout <- function(p, xtitle = "", ytitle = "") {
@@ -149,15 +149,8 @@ eval_txt <- if (has_eval) {
 period_txt <- if (!is.null(info)) sprintf("Backtest %s to %s, %s days, all horizons on the same days.",
                                           format(as_date(info_v("from")), "%d %b %Y"),
                                           format(as_date(info_v("to")), "%d %b %Y"), info_v("days")) else ""
-rule_txt <- if (has_eval) {
-  o <- skill_of("0-1h", per = "old rule"); n <- skill_of("0-1h", per = "new rule")
-  od <- skill_of("day-ahead", per = "old rule"); nd <- skill_of("day-ahead", per = "new rule")
-  sprintf(paste("Since the rule change on %s the direction is set differently, and \"no regulation\" happens",
-                "about twice as often. Skill before / after it: next hour %s / %s, day-ahead %s / %s."),
-          format(as_date(info_v("rule_change")), "%d %B %Y"), pct(o, 1), pct(n, 1), pct(od, 1), pct(nd, 1))
-} else ""
 has_spread <- !is.null(spread) && "horizon" %in% names(spread)
-sp_of <- function(h, m, v = "pinball") spread[[v]][spread$horizon == h & spread$model == m & spread$period == "all"]
+sp_of <- function(h, m, v = "pinball") spread[[v]][spread$horizon == h & spread$model == m]
 sp_p  <- function(h, v) sptest$dm_p[sptest$horizon == h & sptest$metric == v]
 eur1  <- function(x) paste0(if (x < 0) "−" else "", format(round(abs(x), 1), nsmall = 1), " €/MWh")
 spread_txt <- if (has_spread) {
@@ -168,14 +161,12 @@ spread_txt <- if (has_spread) {
           pct(sp_of("day-ahead", "perfect", "skill"), 0))
 } else ""
 value_txt <- if (has_spread) {
-  sprintf(paste("Each quarter, settle 1 MWh at the imbalance price instead of the spot price when the expected",
-                "spread is positive, and the other way round when it is negative. With the ensemble's expected",
-                "spread that earns %s on average for the next hour (DM %s) and %s for tomorrow (DM %s), against",
-                "%s and %s with the benchmark, and %s if the direction were known in advance.",
-                "In practice a balance responsible party uses this to decide whether to close an expected",
-                "imbalance in the intraday market or leave it to the imbalance settlement. The price to compare",
-                "with there is the intraday price, which isn't public, so the spot price stands in for it: this",
-                "measures how useful the expected spread is, not a strategy that could be run as is."),
+  sprintf(paste("A lower pinball loss doesn't say if the forecast is worth anything, so it is also tested",
+                "on a decision: each quarter, settle 1 MWh at the imbalance price instead of the spot price",
+                "when the expected spread is positive, and the other way round when it is negative. That earns",
+                "%s on average for the next hour (DM %s) and %s for tomorrow (DM %s), against %s and %s with",
+                "the benchmark, and %s if the direction were known in advance. The intraday price isn't public,",
+                "so the spot price stands in for it: this measures how useful the forecast is, not a strategy."),
           eur1(sp_of("0-1h", "ens", "value")), p_txt(sp_p("0-1h", "value")),
           eur1(sp_of("day-ahead", "ens", "value")), p_txt(sp_p("day-ahead", "value")),
           eur1(sp_of("0-1h", "clim", "value")), eur1(sp_of("day-ahead", "clim", "value")),
@@ -298,18 +289,17 @@ if (has_da) spread_chart(de, "", day = TRUE)
 
 # Accuracy {scrolling="true"}
 
-## Row {height=520px}
+## Row {height=500px}
 
 ```{r}
 #| title: "How much lower the log loss is than the benchmark, by how far ahead"
 if (has_eval) {
-  sk <- scores |> filter(period == "all", model %in% c("ens", "mnl", "xgb", "persist")) |>
+  sk <- scores |> filter(model %in% c("ens", "mnl", "xgb")) |>
     mutate(h = factor(horizon_labels[horizon], levels = horizon_labels))
   p <- plot_ly()
-  cols <- c(ens = "#f97316", mnl = "#2563eb", xgb = "#16a34a", persist = "#9ca3af")
+  cols <- c(ens = "#f97316", mnl = "#2563eb", xgb = "#16a34a")
   for (m in names(cols)) {
     x <- sk |> filter(model == m) |> arrange(h)
-    if (nrow(x) == 0) next
     p <- p |> add_trace(data = x, x = ~h, y = ~skill, type = "scatter", mode = "lines+markers",
                         name = model_labels[[m]], line = list(color = cols[[m]], width = if (m == "ens") 3 else 2),
                         marker = list(color = cols[[m]], size = 8),
@@ -328,31 +318,52 @@ if (has_eval) {
 
 `r eval_txt`
 
-`r rule_txt`
-
 `r spread_txt`
+
+`r value_txt`
 
 :::
 
-## Row {height=470px}
+## Row {height=460px .tabset}
 
 ```{r}
-#| title: "Scores (all test days)"
+#| title: "Direction"
 if (has_eval) {
   scores |>
-    filter(period == "all") |>
     left_join(tests |> filter(model_b == "clim") |> select(horizon, model = model_a, dm_p), by = c("horizon", "model")) |>
     mutate(h = factor(horizon_labels[horizon], levels = horizon_labels)) |>
     arrange(h, log_loss) |>
     transmute(Horizon = as.character(h), Model = unname(model_labels[model]),
-              `Log loss` = round(log_loss, 3), Brier = round(brier, 3), Skill = pct(skill, 1),
+              `Log loss` = round(log_loss, 3), Skill = pct(skill, 1),
               `DM p vs benchmark` = ifelse(is.na(dm_p), "", ifelse(dm_p < 0.001, "<0.001", format(round(dm_p, 3), nsmall = 3)))) |>
-    knitr::kable(align = "llrrrr")
+    knitr::kable(align = "llrrr")
 }
 ```
 
 ```{r}
-#| title: "Calibration: forecast probability (x) vs how often it happened (y)"
+#| title: "Spread"
+if (has_spread) {
+  spread |>
+    filter(model %in% c("ens", "clim", "perfect")) |>
+    select(horizon, model, pinball, value) |>
+    pivot_wider(names_from = model, values_from = c(pinball, value)) |>
+    left_join(sptest |> select(horizon, metric, dm_p) |> pivot_wider(names_from = metric, values_from = dm_p,
+                                                                       names_prefix = "p_"), by = "horizon") |>
+    mutate(h = factor(horizon_labels[horizon], levels = horizon_labels)) |>
+    arrange(h) |>
+    transmute(Horizon = as.character(h), `Pinball ensemble` = sprintf("%.1f", pinball_ens),
+              `Pinball benchmark` = sprintf("%.1f", pinball_clim), Skill = pct(1 - pinball_ens / pinball_clim, 1),
+              `DM p` = ifelse(p_pinball < 0.001, "<0.001", format(round(p_pinball, 3), nsmall = 3)),
+              `Value ensemble (€/MWh)` = sprintf("%.1f", round(value_ens, 1) + 0),
+              `Value benchmark` = sprintf("%.1f", round(value_clim, 1) + 0),
+              `DM p ` = ifelse(p_value < 0.001, "<0.001", format(round(p_value, 3), nsmall = 3)),
+              `Value, direction known` = sprintf("%.1f", value_perfect)) |>
+    knitr::kable(align = "lrrrrrrrr")
+}
+```
+
+```{r}
+#| title: "Calibration"
 if (!is.null(calib)) {
   p <- plot_ly() |>
     add_lines(x = c(0, 1), y = c(0, 1), line = list(color = "#cfc6bb", dash = "dot"), name = "Perfect", hoverinfo = "skip")
@@ -364,41 +375,11 @@ if (!is.null(calib)) {
                         marker = list(color = dir_colors[[cl]]),
                         hovertemplate = "forecast %{x:.0%}, happened %{y:.0%}<extra></extra>")
   }
-  p |> chart_layout("", "Observed frequency") |>
+  p |> chart_layout("Forecast probability", "How often it happened") |>
     layout(xaxis = list(tickformat = ".0%", range = c(0, 1)), yaxis = list(tickformat = ".0%", range = c(0, 1)),
            hovermode = "closest", legend = list(orientation = "v", x = 1.02, y = 1))
 }
 ```
-
-## Row {height=380px}
-
-```{r}
-#| title: "Spread forecast (imbalance price minus spot price), by how far ahead"
-if (has_spread) {
-  spread |>
-    filter(period == "all", model %in% c("ens", "clim", "perfect")) |>
-    select(horizon, model, pinball, value) |>
-    pivot_wider(names_from = model, values_from = c(pinball, value)) |>
-    left_join(sptest |> select(horizon, metric, dm_p) |> pivot_wider(names_from = metric, values_from = dm_p,
-                                                                       names_prefix = "p_"), by = "horizon") |>
-    mutate(h = factor(horizon_labels[horizon], levels = horizon_labels)) |>
-    arrange(h) |>
-    transmute(Horizon = as.character(h), `Pinball ensemble` = sprintf("%.1f", pinball_ens),
-              `Pinball benchmark` = sprintf("%.1f", pinball_clim), Skill = pct(1 - pinball_ens / pinball_clim, 1),
-              `DM p` = ifelse(p_pinball < 0.001, "<0.001", format(round(p_pinball, 3), nsmall = 3)),
-              `Value ensemble` = sprintf("%.1f", round(value_ens, 1) + 0),
-              `Value benchmark` = sprintf("%.1f", round(value_clim, 1) + 0),
-              `DM p ` = ifelse(p_value < 0.001, "<0.001", format(round(p_value, 3), nsmall = 3)),
-              `Value, direction known` = sprintf("%.1f", value_perfect)) |>
-    knitr::kable(align = "lrrrrrrrr")
-}
-```
-
-::: {.card title="Value of the expected spread (€/MWh)"}
-
-`r value_txt`
-
-:::
 
 # Track record
 
@@ -444,7 +425,7 @@ if (has_spread) {
 #| output: asis
 if (has_live) {
   live_tab |>
-    left_join(scores |> filter(period == "all", model == "ens") |> select(horizon, bt = skill), by = "horizon") |>
+    left_join(scores |> filter(model == "ens") |> select(horizon, bt = skill), by = "horizon") |>
     transmute(Horizon = as.character(h), Quarters = quarters, `Since` = format(dk(from), "%d %b"),
               `Log loss ensemble` = round(ens, 3), `Log loss benchmark` = round(clim, 3),
               `Live skill` = pct(skill, 1), `Backtest skill` = pct(bt, 1)) |>
@@ -502,24 +483,28 @@ for assets that can react on their own; two to four hours ahead there is still t
 shape over the day); wind and solar forecasts made 48 hours ahead (Open-Meteo); recent imbalances.
 
 **Models.** A multinomial lasso (lambda by BIC), XGBoost, and their average (the ensemble). One model
-per hour ahead, trained on the year before and refitted once a week. Benchmarks: how often each direction happened in that hour
-over the last 28 days, and persistence (what followed the last known direction at that lead time).
+per hour ahead, trained on the year before and refitted once a week. Benchmark: how often each direction
+happened in that hour over the last 28 days.
 
 **Spread.** A mixture: the 300 spreads in up-regulated quarters of the last 60 days with the closest
 spot price, weighted by the probability of up, the same for down, and 0 for no regulation. The size of
 the spread grows with the spot price, especially for down-regulation.
 
-**Evaluation.** Log loss and Brier score for the direction, pinball loss and the value of picking a side
-for the spread,
-Diebold-Mariano tests on the daily average loss, with a Newey-West variance over one week of lags
-because good and bad days come in runs. The real-time inputs are only used for the first hour
-because the backtest showed they help there and not further ahead. Energinet's newer wind and solar
-forecasts for the hour being forecast (the 5-hour-ahead forecast, used only from 4 hours before the
-hour, when its last part is published) were also tested and made no difference, so they are not used.
-Most likely the market already trades on them, and the imbalance is what is left after that.
-Recalibrating the probabilities on the last 60 days of forecasts helped after March 2026 but not before,
-so it is not used either. The spread method, the newer forecasts and the recalibration were decided on
-the months before March 2026 and checked on the months after.
+**Evaluation.** Each test answers one question.
+
+- *Is it better than the benchmark?* Log loss for the direction and pinball loss for the spread, the
+  standard scores for probability and quantile forecasts.
+- *Is the difference real or luck?* Diebold-Mariano tests on the daily average loss, with a Newey-West
+  variance over one week of lags because good and bad days come in runs. The same test, ensemble against
+  each model, is why the ensemble is used.
+- *Can the probabilities be taken at face value?* The calibration chart: when the forecast says 40%,
+  it should happen about 40% of the time.
+- *Is it worth anything?* The value of picking a side with the expected spread, since a lower loss
+  alone doesn't say that.
+
+The real-time inputs are only used for the first hour because the backtest showed they help there and
+not further ahead. Energinet's newer wind and solar forecasts for the hour were tested and made no
+difference, most likely because the market already trades on them.
 
 **Data:** [Energi Data Service](https://www.energidataservice.dk) (Energinet), weather by
 [Open-Meteo](https://open-meteo.com).<br>

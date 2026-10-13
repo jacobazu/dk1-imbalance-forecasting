@@ -41,9 +41,7 @@ saveRDS(fc, "data/processed/spread_forecasts.rds")
 
 Q <- as.matrix(fc[, paste0("q", taus * 100)])
 fc |>
-  mutate(pinball = pinball(Q, spread), inside = spread >= q10 & spread <= q90,
-         value = side_value(mean, spread),
-         period = if_else(date >= as_date("2026-03-04"), "new rule", "old rule")) |>
-  group_by(period, model) |>
-  summarise(pinball = mean(pinball), cover_80 = mean(inside), value = mean(value), .groups = "drop") |>
-  print(n = Inf)
+  mutate(pinball = pinball(Q, spread), value = side_value(mean, spread)) |>
+  group_by(model) |>
+  summarise(pinball = mean(pinball), value = mean(value), .groups = "drop") |>
+  print()
