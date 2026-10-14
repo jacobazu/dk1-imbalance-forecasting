@@ -60,12 +60,14 @@ out <- mclapply(refits, \(R) tryCatch({
     P <- list(clim = clim_probs(known[known$date >= D - 30 & known$time < until, ], test),
               mnl  = pred_mnl(m_mnl, test), xgb = pred_xgb(m_xgb, test))
     P$ens <- (P$mnl + P$xgb) / 2
-    pools <- spread_pools(known, until)
-    down  <- near_spot(pools$down, test$spot)
-    up    <- near_spot(pools$up, test$spot)
-    bind_rows(lapply(names(P), \(m) tibble(time = test$time, date = D, hour = test$hour, spot_fc = test$spot,
-                                          dir = test$dir, spread = test$spread, model = m, as_tibble(P[[m]]),
-                                          expected = mixture_quantiles(P[[m]], down, up)[, "mean"])))
+    pools   <- spread_pools(known, until)
+    near_dn <- near_spot(pools$down, test$spot)
+    near_up <- near_spot(pools$up, test$spot)
+    bind_rows(lapply(names(P), \(m) {
+      expected <- mixture_quantiles(P[[m]], near_dn, near_up)[, "mean"]
+      tibble(time = test$time, date = D, hour = test$hour, spot_fc = test$spot, dir = test$dir,
+             spread = test$spread, model = m, as_tibble(P[[m]]), expected = expected)
+    }))
   }))
 }, error = \(e) { message("refit ", R, ": ", conditionMessage(e)); NULL }), mc.cores = cores)
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
@@ -89,15 +91,16 @@ daily <- pnl |> group_by(date) |> summarise(across(-time, sum), .groups = "drop"
 
 strategies <- c(ens = "Forecast", clim = "Benchmark forecast", long = "Always long", short = "Always short",
                 perfect = "Perfect foresight")
-traded <- c(ens = mean(da_position(quarters$exp_ens) != 0), clim = mean(da_position(quarters$exp_clim) != 0),
-            long = 1, short = 1, perfect = mean(quarters$spread != 0))
+share_traded <- c(ens = mean(da_position(quarters$exp_ens) != 0), clim = mean(da_position(quarters$exp_clim) != 0),
+                  long = 1, short = 1, perfect = mean(quarters$spread != 0))
 summary <- bind_rows(lapply(names(strategies), \(s) {
-  x <- daily[[s]]
-  r <- nw_test(x)
+  x  <- daily[[s]]
+  r  <- nw_test(x)
+  sh <- share_traded[[s]]
   tibble(strategy = s, label = strategies[[s]], days = length(x), mean_day = mean(x), total = sum(x),
          p = if (s == "perfect") NA_real_ else r[["p"]], days_positive = mean(x > 0),
-         worst_day = min(x), best_day = max(x), traded = traded[[s]],
-         per_mwh = sum(x) / (traded[[s]] * nrow(quarters) * 0.25))
+         worst_day = min(x), best_day = max(x), traded = sh,
+         per_mwh = sum(x) / (sh * nrow(quarters) * 0.25))
 }))
 
 # the forecast against each alternative, holm over the three
