@@ -195,6 +195,21 @@ da_bt_txt <- if (has_da_bt) {
             eur0(pf$mean_day)))
 } else ""
 
+# the conclusion in three sentences, for the top of the backtest page
+short_txt <- if (has_eval && has_spread) {
+  sig <- function(p) if (p < 0.05) "significant" else "not significant"
+  paste(
+    sprintf("The next hour is fairly predictable: log loss %s lower than the benchmark, and picking a side earns %s (DM %s).",
+            pct(skill_of("0-1h"), 1), eur1(sp_of("0-1h", "ens", "value")), p_txt(sp_p("0-1h", "value"))),
+    sprintf("Tomorrow only a little: log loss %s lower, and picking a side earns %s, which is %s (DM %s).",
+            pct(skill_of("day-ahead"), 1), eur1(sp_of("day-ahead", "ens", "value")),
+            sig(sp_p("day-ahead", "value")), p_txt(sp_p("day-ahead", "value"))),
+    if (has_da_bt) sprintf("Before the auction it is about the same, %s lower log loss, and the day-ahead to imbalance test %s its rule.",
+                           pct(as.numeric(da_bt_info$value[da_bt_info$name == "direction_skill"]), 1),
+                           if (da_bt_info$value[da_bt_info$name == "worth_trading"] == "TRUE") "passes" else "doesn't pass") else "",
+    "So the edge is in the next hour, which is traded on the intraday market. Its prices aren't public, so spot stands in for them here.")
+} else ""
+
 has_da_log  <- !is.null(da_log) && nrow(da_log) > 0
 if (has_da_log) {
   da_next <- da_log |> filter(model == "ens", date == max(date)) |> arrange(time)

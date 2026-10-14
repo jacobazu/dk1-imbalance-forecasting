@@ -280,9 +280,9 @@ if (has_da_live) cum_chart(da_live) else cat("The P&L starts once the first trad
 ```
 
 ::: {.card title="How it works"}
-A position on the day-ahead auction without physical power is settled at the imbalance price. Buying a quarter earns the imbalance price minus spot, selling it earns spot minus the imbalance price. Every morning before the auction, with imbalances up to 09:00 and the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the spot price, the model goes long where the expected spread is above the fees (0.188 €/MWh) and short where it is below minus the fees. The positions are saved before the auction and never changed.
+This tests whether tomorrow's imbalance can be forecast well enough before the auction to be worth a position. A position on the day-ahead auction without physical power is settled at the imbalance price. Buying a quarter earns the imbalance price minus spot, selling it earns spot minus the imbalance price. Every morning before the auction, with imbalances up to 09:00 and the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the spot price, the model goes long where the expected spread is above the fees (0.188 €/MWh) and short where it is below minus the fees. The positions are saved before the auction and never changed.
 
-This is paper trading, not real trades. Energinet expects a balance responsible party to aim to be in balance, so whether this may be done on purpose depends on the market rules and the party's agreement. The backtest and the rule set before it are on the [backtest page](backtest.html).
+This is a paper test, not trading. Energinet expects a balance responsible party to aim to be in balance, so whether this may be done on purpose depends on the market rules and the party's agreement. The backtest and the rule set before it are on the [backtest page](backtest.html).
 :::
 
 # Method

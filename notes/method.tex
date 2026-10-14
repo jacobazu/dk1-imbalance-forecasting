@@ -27,7 +27,7 @@ Forecasts of the chance that DK1 is regulated up, down or not at all in each qua
 Inputs & Calendar, the spot price, wind and solar forecasts made 48 hours ahead, recent imbalances, and real-time grid data for the next hour. Before the auction the price forecast stands in for spot. \\
 Models & Multinomial lasso \citep{tibshirani1996,friedman2010}, XGBoost \citep{chen2016} and their average, refitted weekly. Benchmark: how often each direction happened over the last 28 days. Spread: past spreads at a similar spot price, weighted by the direction probabilities. \\
 Scoring & Log loss and pinball loss against the benchmark, Diebold--Mariano tests with a Newey--West variance \citep{diebold1995,newey1987}, calibration, and the value of picking a side \citep{bottieau2020}. \\
-Day-ahead to imbalance & Long or short 1\,MW per quarter on the day-ahead auction, settled at the imbalance price, after fees. Compared with always long, always short and the benchmark with Newey--West and Holm. Paper trading. \\
+Day-ahead to imbalance & A test of whether tomorrow's spread can be forecast before the auction: long or short 1\,MW per quarter on the day-ahead auction, settled at the imbalance price, after fees. Compared with always long, always short and the benchmark with Newey--West and Holm. Paper only. \\
 Rules & Each forecast only uses data published when it is made, and the backtest uses the same inputs. Test rules are written before the test. \\
 \bottomrule
 \end{tabularx}
