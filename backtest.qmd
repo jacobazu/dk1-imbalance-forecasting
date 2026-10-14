@@ -124,3 +124,51 @@ if (!is.null(calib)) {
 }
 ```
 
+
+# Day-ahead to imbalance {scrolling="true"}
+
+## Row {height=150px}
+
+::: {.card title="The trade"}
+Buy (or sell) 1 MW on the day-ahead auction for a quarter and don't deliver it: the position is settled at the imbalance price, so it earns the imbalance price minus spot (or spot minus the imbalance price). The decision is made at about 10:45 the day before, before the auction, with imbalances up to 09:00 and the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the spot price. Long if the expected spread is above the fees, short if below minus the fees. Fees: Nord Pool 0.055 and eSett's imbalance fee 0.133 €/MWh.
+:::
+
+## Row {height=480px}
+
+```{r}
+#| title: "Cumulative P&L with 1 MW, after fees (backtest)"
+if (!is.null(da_bt_daily)) cum_chart(da_bt_daily)
+```
+
+::: {.card title="What the backtest shows"}
+
+`r da_bt_txt`
+
+The rule was set and committed before the backtest was run: worth trading only if the mean daily P&L is above 0 with p < 0.05 and it beats the benchmark forecast, always long and always short with p < 0.05 (Holm).
+
+:::
+
+## Row {height=330px .tabset}
+
+```{r}
+#| title: "Strategies"
+if (has_da_bt) {
+  da_bt_sum |>
+    transmute(Strategy = label, `€ a day` = format(round(mean_day), big.mark = ","), Total = format(round(total), big.mark = ","),
+              `p (Newey-West)` = ifelse(is.na(p), "", format(round(p, 3), nsmall = 3)),
+              `Days in profit` = pct(days_positive), `Worst day` = format(round(worst_day), big.mark = ","),
+              `Best day` = format(round(best_day), big.mark = ","),
+              `Quarters traded` = pct(traded)) |>
+    knitr::kable(align = "lrrrrrrr")
+}
+```
+
+```{r}
+#| title: "The forecast against the alternatives"
+if (has_da_bt) {
+  da_bt_tests |>
+    transmute(Versus = label, `€ a day more` = round(diff_day, 1),
+              p = format(round(p, 3), nsmall = 3), `p (Holm)` = format(round(p_holm, 3), nsmall = 3)) |>
+    knitr::kable(align = "lrrr")
+}
+```

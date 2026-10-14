@@ -147,3 +147,57 @@ value_txt <- if (has_spread) {
           eur1(sp_of("0-1h", "clim", "value")), eur1(sp_of("day-ahead", "clim", "value")),
           eur1(sp_of("0-1h", "perfect", "value")))
 } else ""
+
+# day-ahead to imbalance: backtest (06_dayahead_to_imbalance.R) and live paper trading (08_da_imbalance.R)
+da_bt_daily <- read_if("results/da_imbalance_daily.csv")
+da_bt_sum   <- read_if("results/da_imbalance_summary.csv")
+da_bt_tests <- read_if("results/da_imbalance_tests.csv")
+da_bt_info  <- read_if("results/da_imbalance_info.csv")
+da_live     <- read_if("results/da_imbalance_live.csv")
+da_log      <- read_if("forecasts/da_imbalance_log.csv")
+da_labels <- c(ens = "Forecast", clim = "Benchmark forecast", long = "Always long", short = "Always short",
+               perfect = "Perfect foresight")
+da_colors <- c(ens = "#f97316", clim = "#6b7280", long = "#16a34a", short = "#2563eb")
+eur0 <- function(x) paste0(ifelse(x < 0, "−", ""), format(round(abs(x)), big.mark = ","), " €")
+
+# cumulative P&L per strategy from a daily table
+cum_chart <- function(daily) {
+  few <- nrow(daily) < 20   # markers and a tick per day while there are only a few days
+  p <- plot_ly()
+  for (s in names(da_colors)) {
+    p <- p |> add_trace(x = as_date(daily$date), y = cumsum(daily[[s]]), name = da_labels[[s]], type = "scatter",
+                        mode = if (few) "lines+markers" else "lines",
+                        line = list(color = da_colors[[s]], width = if (s == "ens") 3 else 2),
+                        marker = if (few) list(color = da_colors[[s]], size = 7) else NULL,
+                        hovertemplate = paste0("%{y:,.0f} €<extra>", da_labels[[s]], "</extra>"))
+  }
+  xa <- list(type = "date", tickformat = "%d %b")
+  if (few) xa$dtick <- 86400000
+  p |> chart_layout("", "€, 1 MW") |> layout(xaxis = xa)
+}
+
+has_da_bt <- !is.null(da_bt_sum)
+da_bt_txt <- if (has_da_bt) {
+  e  <- da_bt_sum[da_bt_sum$strategy == "ens", ]
+  pf <- da_bt_sum[da_bt_sum$strategy == "perfect", ]
+  vs <- function(s) eur0(da_bt_tests$diff_day[da_bt_tests$versus == s])
+  worth <- da_bt_info$value[da_bt_info$name == "worth_trading"] == "TRUE"
+  paste(
+    sprintf("Backtest %s to %s, %s days. With 1 MW the forecast's positions earned %s a day after fees (%s in total, %s per MWh traded), %s with Newey-West.",
+            format(as_date(da_bt_info$value[da_bt_info$name == "from"]), "%d %b %Y"),
+            format(as_date(da_bt_info$value[da_bt_info$name == "to"]), "%d %b %Y"), e$days,
+            eur0(e$mean_day), eur0(e$total), sprintf("%.1f €", e$per_mwh), p_txt(e$p)),
+    sprintf("It made %s a day more than the benchmark forecast, %s more than always long and %s more than always short, with Holm p = %s.",
+            vs("clim"), vs("long"), vs("short"), format(round(min(da_bt_tests$p_holm), 2), nsmall = 2)),
+    if (worth) "By the rule set before running, it is worth trading." else
+      "By the rule set before running, that is not enough to call it worth trading. It runs live as paper trading anyway, as the real test.",
+    sprintf("Knowing the direction in advance would earn %s a day, so nearly all the money is in the direction, which is hard to see the day before.",
+            eur0(pf$mean_day)))
+} else ""
+
+has_da_log  <- !is.null(da_log) && nrow(da_log) > 0
+if (has_da_log) {
+  da_next <- da_log |> filter(model == "ens", date == max(date)) |> arrange(time)
+  da_next_day <- as_date(da_next$date[1])
+}
+has_da_live <- !is.null(da_live) && nrow(da_live) > 0

@@ -111,7 +111,7 @@ tests <- bind_rows(lapply(c("clim", "long", "short"), \(s) {
   mutate(p_holm = p.adjust(p, "holm"))
 
 ll <- fc |>
-  filter(model %in% c("ens", "clim")) |>
+  filter(model %in% c("ens", "clim"), !is.na(dir)) |>
   mutate(ll = log_loss(cbind(down, none, up), dir)) |>
   group_by(model) |>
   summarise(ll = mean(ll), .groups = "drop")
