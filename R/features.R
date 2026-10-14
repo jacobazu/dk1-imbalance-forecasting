@@ -37,15 +37,16 @@ make_quarters <- function(imb, spot, weather, holidays) {
     mutate(spot_neg = as.numeric(spot < 0))
 }
 
-# imbalance shares known at 14:00 the day before: that morning, and the same hour the week before
-add_recent <- function(q) {
+# imbalance shares known at 14:00 the day before: that morning, and the same hour the week before.
+# morning_until = 9 for the forecast made before the auction (R/da_imbalance.R)
+add_recent <- function(q, morning_until = 12) {
   daily_hour <- q |>
     filter(!is.na(dir)) |>
     group_by(date, hour) |>
     summarise(up = mean(dir == 1), down = mean(dir == -1), .groups = "drop")
 
   morning <- q |>
-    filter(!is.na(dir), hour < 12) |>
+    filter(!is.na(dir), hour < morning_until) |>
     group_by(date) |>
     summarise(morning_up = mean(dir == 1), morning_down = mean(dir == -1), .groups = "drop") |>
     mutate(date = date + 1)
