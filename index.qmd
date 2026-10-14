@@ -293,7 +293,7 @@ This is paper trading, not real trades. Energinet expects a balance responsible 
 sets the imbalance price: above spot when the system is short, below when it is long. The models give the chance
 of each direction and the spread between the imbalance price and spot.
 
-**When.** Every three hours for the next 4 hours, once a day after the auction for all of tomorrow, and once before the auction for the day-ahead to imbalance positions.
+**When.** Every hour for the next 4 hours, once a day after the auction for all of tomorrow, and once before the auction for the day-ahead to imbalance positions.
 
 **Inputs.** Calendar, the spot price, wind and solar forecasts made 48 hours ahead and recent imbalances. For the
 next hour also the real-time state of the grid.

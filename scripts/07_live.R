@@ -1,4 +1,4 @@
-# live run every 3 hours: next 4 hours, and tomorrow after the auction. logs are append-only
+# live run every hour: next 4 hours, and tomorrow after the auction. logs are append-only
 # LOCAL=1 uses data/raw, NOW = time to run as (for testing)
 
 library(dplyr)

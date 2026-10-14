@@ -1,6 +1,6 @@
 # day-ahead to imbalance: take a position on the day-ahead auction, don't deliver, settle it at the
 # imbalance price. long earns imbalance - spot, short earns spot - imbalance. same steps live and in
-# the backtest (scripts/06_dayahead_to_imbalance.R, scripts/08_da_imbalance_live.R)
+# the backtest (scripts/06_dayahead_to_imbalance.R, scripts/08_da_imbalance.R)
 
 library(dplyr)
 library(lubridate)
