@@ -4,6 +4,8 @@ Forecasts of the imbalance in DK1, in R. For each quarter-hour it gives the chan
 
 Dashboard: [jacobazu.github.io/dk1-imbalance-forecasting](https://jacobazu.github.io/dk1-imbalance-forecasting)
 
+Methods: [one page (PDF)](notes/method.pdf)
+
 Models: multinomial lasso, XGBoost and their average. The benchmark is how often each direction happened in that hour over the last 28 days.
 
 ## The real test
