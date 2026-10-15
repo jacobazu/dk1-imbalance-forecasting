@@ -83,14 +83,16 @@ spread_chart <- function(fc, xtitle, day = FALSE) {
 }
 
 # latest intraday forecast (ensemble)
-has_intra <- !is.null(intra)
+has_intra <- !is.null(intra) && any(intra$model == "ens")
 if (has_intra) {
   ie <- intra |> filter(model == "ens") |> arrange(time) |>
     mutate(label = format(dk(time), "%H:%M"))
   made <- dk(ie$made_utc[1])
-  h1 <- ie |> filter(bucket == 1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
+  # the nearest hour that is left: a run that starts late in the hour has no quarters left in the first one
+  b1 <- min(ie$bucket)
+  h1 <- ie |> filter(bucket == b1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
   h1_dir <- names(which.max(unlist(h1[, c("down", "none", "up")])))
-  ic <- intra |> filter(model == "clim", bucket == 1) |> summarise(across(c(down, none, up), mean))
+  ic <- intra |> filter(model == "clim", bucket == b1) |> summarise(across(c(down, none, up), mean))
 }
 
 # latest day-ahead forecast (ensemble)
