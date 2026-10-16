@@ -6,7 +6,7 @@ name: Live forecast
 on:
   schedule:
     - cron: "7 * * * *"     # 00:07, 01:07, ... UTC
-  workflow_dispatch:
+  workflow_dispatch:        # the outside scheduler (cron-job.org): every hour at :07, a backup at :37
   push:
     branches: [master]
     paths:                  # dashboard changes only rebuild the site
@@ -26,7 +26,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # skip if this hour's forecast is already saved: the outside scheduler starts a backup run at :37,
+  # and github's own timer sometimes starts one late
+  gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+      - id: check
+        run: |
+          issue=$(date -u +%Y-%m-%dT%H:00:00Z)
+          if [ "${{ github.event_name }}" = "push" ]; then go=true
+          elif awk -F, -v i="$issue" 'NR == 1 {for (k = 1; k <= NF; k++) if ($k == "issue") c = k; next}
+                                      $c == i {f = 1; exit} END {exit !f}' forecasts/intraday_log.csv; then go=false
+          else go=true; fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+          echo "forecast for the hour from $issue UTC, run = $go"
+
   forecast:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -79,8 +101,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add forecasts results
           git commit -m "Forecasts made $(date -u '+%F %H:%M') UTC" || echo "Nothing new to commit"
-          git pull --rebase origin master
-          git push
+          # a short glitch at github can make the push fail: three tries
+          for try in 1 2 3; do
+            if git pull --rebase origin master && git push; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            echo "saving failed (try $try), trying again in 20 seconds"
+            sleep 20
+          done
+          exit 1
 
       - name: Build dashboard
         run: |
