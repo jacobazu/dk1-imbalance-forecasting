@@ -20,8 +20,9 @@ horizon_labels <- c("0-1h" = "0–1 h", "1-2h" = "1–2 h", "2-3h" = "2–3 h", 
 # all from forecasts/ and results/, nothing typed in
 read_if <- function(f) if (file.exists(f)) read_csv(f, show_col_types = FALSE) else NULL
 # latest forecasts from the logs
-intra  <- read_if("forecasts/intraday_log.csv")
-if (!is.null(intra)) intra <- filter(intra, issue == max(issue))
+intra_all <- read_if("forecasts/intraday_log.csv")
+intra  <- if (!is.null(intra_all)) filter(intra_all, issue == max(issue))
+outcomes <- read_if("results/outcomes.csv")
 dayah  <- read_if("forecasts/dayahead_log.csv")
 if (!is.null(dayah)) dayah <- filter(dayah, date == max(date))
 live   <- read_if("results/live_scored.csv")
@@ -93,6 +94,42 @@ if (has_intra) {
   h1 <- ie |> filter(bucket == b1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
   h1_dir <- names(which.max(unlist(h1[, c("down", "none", "up")])))
   ic <- intra |> filter(model == "clim", bucket == b1) |> summarise(across(c(down, none, up), mean))
+}
+
+# last 24 hours: the newest forecast made before each quarter, and what happened
+has_recent <- FALSE
+if (!is.null(intra_all) && !is.null(outcomes)) {
+  last_known <- max(outcomes$time)
+  dirs <- c("down", "none", "up")
+  recent <- intra_all |>
+    filter(time > last_known - hours(24), time <= last_known) |>
+    group_by(time, model) |>
+    slice_min(bucket, n = 1, with_ties = FALSE) |>
+    ungroup() |>
+    inner_join(select(outcomes, time, dir, spread_actual = spread), by = "time") |>
+    mutate(pick = dirs[max.col(cbind(down, none, up), ties.method = "first")],
+           happened = dirs[dir + 2], hit = pick == happened)
+  re <- recent |> filter(model == "ens") |> arrange(time)
+  rc <- recent |> filter(model == "clim")
+  has_recent <- nrow(re) > 0
+}
+
+# probabilities with what happened as a square on top
+happened_colors <- c(down = "#2563eb", none = "#94a3b8", up = "#f97316")
+recent_prob_chart <- function(x) {
+  prob_chart(x, "", day = TRUE) |>
+    add_markers(x = dk(x$time), y = rep(1.07, nrow(x)), text = unname(dir_labels[x$happened]),
+                marker = list(symbol = "square", size = 8, color = unname(happened_colors[x$happened])),
+                showlegend = FALSE, hovertemplate = "%{text}<extra>What happened</extra>") |>
+    layout(yaxis = list(range = c(0, 1.13), tickvals = c(0, 0.25, 0.5, 0.75, 1)))
+}
+
+# expected spread and band, with the actual spread as dots
+recent_spread_chart <- function(x) {
+  spread_chart(x, "", day = TRUE) |>
+    add_markers(x = dk(x$time), y = x$spread_actual, name = "What happened",
+                marker = list(color = ink, size = 5),
+                hovertemplate = "%{y:.0f} €/MWh<extra>Actual</extra>")
 }
 
 # latest day-ahead forecast (ensemble)

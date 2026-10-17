@@ -93,3 +93,12 @@ if (nrow(scored) > 0) {
   dir.create("results", showWarnings = FALSE)
   append_log(scored |> select(-dir), "results/live_scored.csv", c("time", "horizon"))
 }
+
+# what happened in each quarter, for the dashboard's last 24 hours
+outcomes <- data$imb |>
+  filter(!is.na(DominatingDirection), !is.na(ImbalancePriceEUR), !is.na(SpotPriceEUR)) |>
+  transmute(time, dir = DominatingDirection, spread = ImbalancePriceEUR - SpotPriceEUR)
+if (nrow(outcomes) > 0) {
+  dir.create("results", showWarnings = FALSE)
+  append_log(outcomes, "results/outcomes.csv", "time")
+}

@@ -137,6 +137,57 @@ if (has_da) prob_chart(de, "", day = TRUE) else cat("No day-ahead forecast yet."
 if (has_da) spread_chart(de, "", day = TRUE)
 ```
 
+# Last 24 hours
+
+## Row {height=14%}
+
+::: {.card}
+<div class="kpi" style="--accent: #f97316">
+<div>
+<div class="kpi-label">Quarters known</div>
+<div class="kpi-value">`r if (has_recent) nrow(re) else "–"`</div>
+<div class="kpi-sub">`r if (has_recent) paste("last 24 hours, up to", format(dk(last_known), "%a %H:%M")) else "starts once the first quarters are published"`</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-calendar-check-fill"></i></div>
+</div>
+:::
+
+::: {.card}
+<div class="kpi" style="--accent: #16a34a">
+<div>
+<div class="kpi-label">Right direction, forecast</div>
+<div class="kpi-value">`r if (has_recent) pct(mean(re$hit)) else "–"`</div>
+<div class="kpi-sub">most likely direction. A forecast that says 50% is right about half the time</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-check2-circle"></i></div>
+</div>
+:::
+
+::: {.card}
+<div class="kpi" style="--accent: #6b7280">
+<div>
+<div class="kpi-label">Right direction, benchmark</div>
+<div class="kpi-value">`r if (has_recent) pct(mean(rc$hit)) else "–"`</div>
+<div class="kpi-sub">most common direction in that hour over the last 28 days</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-bar-chart-fill"></i></div>
+</div>
+:::
+
+## Row {height=48%}
+
+```{r}
+#| title: "Forecast and what happened, per quarter-hour (Danish time). Bars: the newest forecast before the quarter. Squares: what happened"
+if (has_recent) recent_prob_chart(re) else cat("No quarters with both a forecast and a result yet.")
+```
+
+## Row {height=38%}
+
+```{r}
+#| title: "Imbalance price minus spot price: forecast and what happened (EUR/MWh)"
+if (has_recent) recent_spread_chart(re)
+```
+
 # Track record
 
 ## Row {height=14%}
@@ -190,9 +241,8 @@ if (has_live) {
   cat("The track record starts once the first forecast quarters have passed.")
 }
 cat("\n\nEvery forecast is saved before its quarter starts and never changed, and is scored once the",
-    "imbalance data for that quarter is published. A few days of live data say little: the backtest",
-    "needed months to show differences of a few percent. Want to see the backtest?",
-    "<a href=\"backtest.html\"><b>Click here</b></a>.\n")
+    "imbalance data for that quarter is published. A few days of live data say little: differences of a",
+    "few percent take months to show.\n")
 ```
 
 ```{r}
@@ -282,7 +332,7 @@ if (has_da_live) cum_chart(da_live) else cat("The P&L starts once the first trad
 ::: {.card title="How it works"}
 This tests whether tomorrow's imbalance can be forecast well enough before the auction to be worth a position. A position on the day-ahead auction without physical power is settled at the imbalance price. Buying a quarter earns the imbalance price minus spot, selling it earns spot minus the imbalance price. Every morning before the auction, with imbalances up to 09:00 and the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the spot price, the model goes long where the expected spread is above the fees (0.188 €/MWh) and short where it is below minus the fees. The positions are saved before the auction and never changed.
 
-This is a paper test, not trading. Energinet expects a balance responsible party to aim to be in balance, so whether this may be done on purpose depends on the market rules and the party's agreement. The backtest and the rule set before it are on the [backtest page](backtest.html).
+This is a paper test, not trading. Energinet expects a balance responsible party to aim to be in balance, so whether this may be done on purpose depends on the market rules and the party's agreement.
 :::
 
 # Method
