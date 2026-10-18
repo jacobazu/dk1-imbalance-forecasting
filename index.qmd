@@ -5,6 +5,8 @@ format:
     theme: [cosmo, theme.scss]
     embed-resources: true
     nav-buttons:
+      - text: jacobazu.github.io
+        href: https://jacobazu.github.io/
       - text: Backtest
         href: backtest.html
       - icon: github
