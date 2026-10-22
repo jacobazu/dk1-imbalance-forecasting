@@ -58,9 +58,14 @@ append_log <- function(new, file, keys) {
 }
 
 # next 4 hours, only quarters that have not started yet
-fi <- forecast_intraday(models, data, issue) |> filter(time > now)
-append_log(fi, "forecasts/intraday_log.csv", c("issue", "time", "model"))
-cat("intraday:", nrow(fi) / 2, "quarters from", format(with_tz(issue, "Europe/Copenhagen")), "danish time\n")
+fi <- forecast_intraday(models, data, issue)
+if (is.null(fi)) {
+  cat("intraday: no forecast, the quarter an hour ago has missing data\n")
+} else {
+  fi <- filter(fi, time > now)
+  append_log(fi, "forecasts/intraday_log.csv", c("issue", "time", "model"))
+  cat("intraday:", nrow(fi) / 2, "quarters from", format(with_tz(issue, "Europe/Copenhagen")), "danish time\n")
+}
 
 # tomorrow, once the auction is done
 tomorrow <- as_date(now_dk) + 1

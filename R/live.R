@@ -45,7 +45,7 @@ forecast_intraday <- function(models, data, issue) {
   q <- live_quarters(data)
   d <- intraday_rows(data, q, seq(issue - days(30), issue, by = "hour"))
   pools <- spread_pools(q, issue - minutes(60))
-  bind_rows(lapply(1:4, \(b) {
+  out <- bind_rows(lapply(1:4, \(b) {
     m     <- models$intraday[[b]]
     test  <- d[d$issue == issue & d$bucket == b & complete.cases(d[, c(base_cols, m$cols)]), ]
     known <- d[d$bucket == b & !is.na(d$dir) & d$time < issue - minutes(60), ]
@@ -54,7 +54,10 @@ forecast_intraday <- function(models, data, issue) {
     P$ens <- (P$mnl + P$xgb) / 2
     bind_rows(lapply(c("ens", "clim"), \(k) tibble(issue = issue, time = test$time, bucket = b,
                                                    model = k, spot = test$spot, as_tibble(P[[k]]))))
-  })) |>
+  }))
+  # nothing to forecast when the last known quarter has missing data
+  if (nrow(out) == 0) return(NULL)
+  out |>
     group_by(model) |>
     group_modify(\(x, k) add_spread(x, pools)) |>
     ungroup()
