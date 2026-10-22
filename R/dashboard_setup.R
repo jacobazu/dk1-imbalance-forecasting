@@ -255,3 +255,20 @@ if (has_da_log) {
   da_next_day <- as_date(da_next$date[1])
 }
 has_da_live <- !is.null(da_live) && nrow(da_live) > 0
+
+# a banner if a visitor opens the page more than 3 hours after it was built (the page is rebuilt every hour)
+writeLines(sprintf('<meta name="built" content="%s">
+<style>.stale { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fef2f2; color: #991b1b;
+  border-top: 1px solid #fecaca; font-size: 14px; padding: 10px 20px; text-align: center; }</style>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const built = new Date(document.querySelector("meta[name=built]").content);
+  if (Date.now() - built > 3 * 3600 * 1000) {
+    const el = document.createElement("div");
+    el.className = "stale";
+    el.textContent = "Not updated since " + built.toLocaleString("en-GB", { timeZone: "Europe/Copenhagen",
+      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " (Danish time). The hourly update has not run.";
+    document.body.appendChild(el);
+  }
+});
+</script>', format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")), "stale.html")
