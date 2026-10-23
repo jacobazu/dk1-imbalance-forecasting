@@ -17,7 +17,7 @@ model_labels <- c(ens = "Ensemble", mnl = "Multinomial lasso", xgb = "XGBoost",
 horizon_labels <- c("0-1h" = "0–1 h", "1-2h" = "1–2 h", "2-3h" = "2–3 h", "3-4h" = "3–4 h",
                     "day-ahead" = "Day-ahead")
 
-# all from forecasts/ and results/, nothing typed in
+# all from forecasts/ and results/
 read_if <- function(f) if (file.exists(f)) read_csv(f, show_col_types = FALSE) else NULL
 # latest forecasts from the logs
 intra_all <- read_if("forecasts/intraday_log.csv")
@@ -89,7 +89,6 @@ if (has_intra) {
   ie <- intra |> filter(model == "ens") |> arrange(time) |>
     mutate(label = format(dk(time), "%H:%M"))
   made <- dk(ie$made_utc[1])
-  # the nearest hour that is left: a run that starts late in the hour has no quarters left in the first one
   b1 <- min(ie$bucket)
   h1 <- ie |> filter(bucket == b1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
   h1_dir <- names(which.max(unlist(h1[, c("down", "none", "up")])))
@@ -187,7 +186,7 @@ value_txt <- if (has_spread) {
           eur1(sp_of("0-1h", "perfect", "value")))
 } else ""
 
-# day-ahead to imbalance: backtest (06_dayahead_to_imbalance.R) and live paper trading (08_da_imbalance.R)
+# day-ahead to imbalance positions
 da_bt_daily <- read_if("results/da_imbalance_daily.csv")
 da_bt_sum   <- read_if("results/da_imbalance_summary.csv")
 da_bt_tests <- read_if("results/da_imbalance_tests.csv")
@@ -201,7 +200,7 @@ eur0 <- function(x) paste0(ifelse(x < 0, "−", ""), format(round(abs(x)), big.m
 
 # cumulative P&L per strategy from a daily table
 cum_chart <- function(daily) {
-  few <- nrow(daily) < 20   # markers and a tick per day while there are only a few days
+  few <- nrow(daily) < 20
   p <- plot_ly()
   for (s in names(da_colors)) {
     p <- p |> add_trace(x = as_date(daily$date), y = cumsum(daily[[s]]), name = da_labels[[s]], type = "scatter",
@@ -234,7 +233,7 @@ da_bt_txt <- if (has_da_bt) {
             eur0(pf$mean_day)))
 } else ""
 
-# the conclusion in three sentences, for the top of the backtest page
+# summary for the backtest page
 short_txt <- if (has_eval && has_spread) {
   sig <- function(p) if (p < 0.05) "significant" else "not significant"
   paste(
@@ -256,7 +255,7 @@ if (has_da_log) {
 }
 has_da_live <- !is.null(da_live) && nrow(da_live) > 0
 
-# a banner if a visitor opens the page more than 3 hours after it was built (the page is rebuilt every hour)
+# banner when the page is more than 3 hours old
 writeLines(sprintf('<meta name="built" content="%s">
 <style>.stale { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fef2f2; color: #991b1b;
   border-top: 1px solid #fecaca; font-size: 14px; padding: 10px 20px; text-align: center; }</style>

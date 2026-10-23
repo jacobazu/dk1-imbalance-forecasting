@@ -135,7 +135,9 @@ if (!is.null(calib)) {
 ## Row {height=150px}
 
 ::: {.card title="The test"}
-Can tomorrow's imbalance be forecast well enough before the auction to be worth a position? Buy (or sell) 1 MW on the day-ahead auction for a quarter and don't deliver it: the position is settled at the imbalance price, so it earns the imbalance price minus spot (or spot minus the imbalance price). The decision is made at about 10:45 the day before, before the auction, with imbalances up to 09:00 and the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the spot price. Long if the expected spread is above the fees, short if below minus the fees. Fees: Nord Pool 0.055 and eSett's imbalance fee 0.133 €/MWh.
+1 MW bought or sold on the day-ahead auction and not delivered, so it is settled at the imbalance price. Decided at
+about 10:45 the day before, with the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the
+spot price: long if the expected spread is above the fees (0.188 €/MWh), short if below minus the fees.
 :::
 
 ## Row {height=480px}
