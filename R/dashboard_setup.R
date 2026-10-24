@@ -56,6 +56,20 @@ chart_layout <- function(p, xtitle = "", ytitle = "") {
 }
 
 # stacked probabilities per quarter
+# quarters in time order, plotly sorts text labels otherwise (00:00 before 23:45)
+x_axis <- function(fc, day) {
+  if (day) list(type = "date", tickformat = "%H:%M", dtick = 2 * 3600 * 1000)
+  else list(type = "category", categoryorder = "array", categoryarray = fc$x)
+}
+
+# hh:mm, with the time zone on the hour that comes twice when the clocks go back
+quarter_label <- function(time) {
+  lab <- format(dk(time), "%H:%M")
+  twice <- lab %in% lab[duplicated(lab)]
+  lab[twice] <- format(dk(time[twice]), "%H:%M %Z")
+  lab
+}
+
 prob_chart <- function(fc, xtitle, day = FALSE) {
   fc$x <- if (day) dk(fc$time) else fc$label
   p <- plot_ly(fc, x = ~x)
@@ -65,8 +79,7 @@ prob_chart <- function(fc, xtitle, day = FALSE) {
   }
   p |> chart_layout(xtitle) |>
     layout(barmode = "stack", bargap = 0.15, yaxis = list(tickformat = ".0%", range = c(0, 1)),
-           xaxis = if (day) list(type = "date", tickformat = "%H:%M", dtick = 2 * 3600 * 1000)
-                   else list(type = "category"))
+           xaxis = x_axis(fc, day))
 }
 
 # expected spread with the 80% band
@@ -79,15 +92,14 @@ spread_chart <- function(fc, xtitle, day = FALSE) {
     add_lines(y = ~mean, name = "Expected spread", line = list(color = "#f97316", width = 3),
               hovertemplate = "%{y:.1f} €/MWh<extra>Expected</extra>") |>
     chart_layout(xtitle) |>
-    layout(xaxis = if (day) list(type = "date", tickformat = "%H:%M", dtick = 2 * 3600 * 1000)
-                   else list(type = "category"))
+    layout(xaxis = x_axis(fc, day))
 }
 
 # latest intraday forecast (ensemble)
 has_intra <- !is.null(intra) && any(intra$model == "ens")
 if (has_intra) {
   ie <- intra |> filter(model == "ens") |> arrange(time) |>
-    mutate(label = format(dk(time), "%H:%M"))
+    mutate(label = quarter_label(time))
   made <- dk(ie$made_utc[1])
   b1 <- min(ie$bucket)
   h1 <- ie |> filter(bucket == b1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
@@ -135,7 +147,7 @@ recent_spread_chart <- function(x) {
 has_da <- !is.null(dayah)
 if (has_da) {
   de <- dayah |> filter(model == "ens") |> arrange(time) |>
-    mutate(label = format(dk(time), "%H:%M"))
+    mutate(label = quarter_label(time))
   da_day <- as_date(dayah$date[1])
   da_avg <- de |> summarise(across(c(down, none, up, mean), mean))
   da_dir_counts <- table(factor(c("down", "none", "up")[max.col(as.matrix(de[, c("down", "none", "up")]))],
