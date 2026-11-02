@@ -38,8 +38,15 @@ models_file <- "models/models.rds"
 models <- if (file.exists(models_file)) readRDS(models_file) else NULL
 if (is.null(models) || difftime(now, models$fitted_at, units = "days") >= 7) {
   message("refitting the models")
-  models <- fit_models(get_data(400), issue)
-  saveRDS(models, models_file)
+  refit <- tryCatch(fit_models(get_data(400), issue), error = \(e) {
+    if (is.null(models)) stop(e)
+    message("refit failed, keeping the models from ", format(models$fitted_at), ": ", conditionMessage(e))
+    NULL
+  })
+  if (!is.null(refit)) {
+    models <- refit
+    saveRDS(models, models_file)
+  }
 }
 
 data <- get_data(62)

@@ -54,6 +54,28 @@ get_spot <- function(from, to) {
     arrange(time)
 }
 
+# open-meteo is sometimes down for a quarter of an hour or more. forecasts made two days before don't
+# change, so the last download is kept in the repository and only the last few days are fetched again
+weather_file <- "live/weather.csv"
+get_weather_saved <- function(from, to) {
+  old <- if (file.exists(weather_file)) readr::read_csv(weather_file, show_col_types = FALSE) else NULL
+  start <- if (is.null(old)) as_date(from) else max(as_date(from), as_date(max(old$time)) - 3)
+  new <- tryCatch(get_weather(start, to), error = \(e) {
+    message("open-meteo failed, using the saved weather: ", conditionMessage(e))
+    NULL
+  })
+  if (is.null(new) && is.null(old)) stop("no weather: open-meteo failed and nothing is saved")
+  w <- bind_rows(new, old) |>
+    distinct(time, .keep_all = TRUE) |>
+    filter(time >= as_datetime(as_date(from))) |>
+    arrange(time)
+  if (!is.null(new)) {
+    dir.create("live", showWarnings = FALSE)
+    readr::write_csv(w, weather_file)
+  }
+  w
+}
+
 # everything for one run, days back: 62 to forecast, 400 to refit
 get_live_data <- function(now, days) {
   today <- as_date(with_tz(now, "Europe/Copenhagen"))
@@ -64,5 +86,5 @@ get_live_data <- function(now, days) {
                    distinct(time, .keep_all = TRUE) |> arrange(time),
        rt      = get_realtime(today - if (days > 62) days else 1, today + 1),
        fc      = get_energinet_forecasts(today - min(days, 400), today + 2),
-       weather = get_weather(today - days, today + 1))
+       weather = if (days > 62) get_weather(today - days, today + 1) else get_weather_saved(today - days, today + 1))
 }

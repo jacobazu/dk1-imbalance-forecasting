@@ -30,7 +30,8 @@ get_data <- function(days) {
     list(imb     = readRDS("data/raw/imbalance.rds") |> filter(time >= now - days(days), time < now - minutes(60)),
          weather = readRDS("data/raw/weather.rds"))
   } else {
-    list(imb = get_imbalance(today - days, today + 1), weather = get_weather(today - days, today + 1))
+    list(imb     = get_imbalance(today - days, today + 1),
+         weather = if (days > 62) get_weather(today - days, today + 1) else get_weather_saved(today - days, today + 1))
   }
 }
 history <- function(data) {
