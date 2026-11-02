@@ -83,7 +83,12 @@ jobs:
         if: github.event_name != 'push'
         run: |
           before=$(sha256sum models/models.rds 2>/dev/null || true)
-          Rscript scripts/07_live.R
+          # on failure the r error also goes in an annotation, readable without the full log
+          set -o pipefail
+          if ! Rscript scripts/07_live.R 2>&1 | tee live.log; then
+            echo "::error title=07_live.R::$(grep -E -B2 -A3 '^Error|Execution halted' live.log | head -c 900 | tr '\n%' ' p')"
+            exit 1
+          fi
           after=$(sha256sum models/models.rds)
           if [ "$before" != "$after" ]; then echo "refit=true" >> "$GITHUB_OUTPUT"; fi
 
