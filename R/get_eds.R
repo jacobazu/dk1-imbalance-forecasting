@@ -8,7 +8,7 @@ get_eds <- function(dataset, start, end, area = "DK1", columns = NULL) {
   if (!is.null(area))    req <- req_url_query(req, filter = jsonlite::toJSON(list(PriceArea = area)))
   if (!is.null(columns)) req <- req_url_query(req, columns = paste(columns, collapse = ","))
   resp <- req |>
-    req_retry(max_tries = 5, backoff = \(i) 30) |>                    # rate limit helper
+    req_retry(max_tries = 6, retry_on_failure = TRUE, backoff = \(i) min(15 * 2^i, 240)) |>  # 30s, 1, 2, 4, 4 min
     req_perform() |>
     resp_body_json(simplifyVector = TRUE)
 
