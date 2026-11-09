@@ -344,6 +344,8 @@ Paper test, not trading. A day-ahead position without physical power is settled 
 morning before the auction the model goes long where the expected spread is above the fees (0.188 €/MWh) and short
 where it is below minus the fees. The positions are saved before the auction and never changed.
 
+**So far:** `r da_test`
+
 Energinet expects a balance responsible party to aim to be in balance, so doing this on purpose depends on the rules.
 :::
 

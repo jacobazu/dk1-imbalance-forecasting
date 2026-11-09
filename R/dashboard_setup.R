@@ -314,6 +314,22 @@ if (has_da_log) {
 }
 has_da_live <- !is.null(da_live) && nrow(da_live) > 0
 
+# is the paper p&l different from zero, and from just always being long? newey-west on the daily series (7 lags)
+nw_p <- function(d, lag = 7) {
+  n <- length(d)
+  if (n < 10) return(NA_real_)
+  u <- d - mean(d)
+  v <- sum(u^2) / n
+  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
+  2 * pt(-abs(mean(d) / sqrt(v / n) * sqrt((n - 1) / n)), df = n - 1)
+}
+p_txt <- function(p) if (is.na(p)) "too few days to test" else if (p < 0.001) "p < 0.001" else sprintf("p = %.2f", p)
+da_test <- if (has_da_live) sprintf(
+  "%s a day (%s, not yet different from zero at 5%%). Against always long: %s a day (%s).",
+  eur0(mean(da_live$ens)), p_txt(nw_p(da_live$ens)),
+  eur0(mean(da_live$ens - da_live$long)), p_txt(nw_p(da_live$ens - da_live$long))) else ""
+if (has_da_live && !is.na(nw_p(da_live$ens)) && nw_p(da_live$ens) < 0.05) da_test <- sub(", not yet different from zero at 5%", "", da_test, fixed = TRUE)
+
 # banner when the page is more than 3 hours old
 writeLines(sprintf('<meta name="built" content="%s">
 <style>.stale { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fef2f2; color: #991b1b;
