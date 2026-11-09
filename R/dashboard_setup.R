@@ -99,21 +99,23 @@ spread_chart <- function(fc, xtitle, day = FALSE) {
   }
   w <- if (day) 0.75 * 15 * 60 * 1000 else NULL
   shade <- function(rgb, p) sprintf("rgba(%s,%.2f)", rgb, 0.08 + 0.85 * p)
-  side_hover <- function(word) paste0(word, " %{customdata[0]:.0%}: about %{customdata[1]:+.0f}, ",
-                                      "8 in 10 between %{customdata[2]:+.0f} and %{customdata[3]:+.0f}<extra></extra>")
+  side_txt <- function(word, p, m, lo, hi) sprintf("%s %d%%: %+.0f (8 in 10: %+.0f to %+.0f)", word,
+                                                  round(100 * p), m, lo, hi)
+  fc$up_txt <- side_txt("Up", fc$up, fc$up50, fc$up10, fc$up90)
+  fc$dn_txt <- side_txt("Down", fc$down, fc$dn50, fc$dn10, fc$dn90)
+  fc$no_txt <- sprintf("None %s%%: 0", round(100 * fc$none))
   plot_ly(fc, x = ~x) |>
-    add_bars(y = ~up90 - up10, base = ~up10, width = w, name = "If up-regulated",
+    add_bars(y = ~up90 - up10, base = ~up10, width = w, name = "If up",
              marker = list(color = shade("249,115,22", fc$up), line = list(width = 0)),
-             customdata = cbind(fc$up, fc$up50, fc$up10, fc$up90), hovertemplate = side_hover("Up")) |>
-    add_bars(y = ~dn90 - dn10, base = ~dn10, width = w, name = "If down-regulated",
+             text = ~up_txt, textposition = "none", hovertemplate = "%{text}<extra></extra>") |>
+    add_bars(y = ~dn90 - dn10, base = ~dn10, width = w, name = "If down",
              marker = list(color = shade("37,99,235", fc$down), line = list(width = 0)),
-             customdata = cbind(fc$down, fc$dn50, fc$dn10, fc$dn90), hovertemplate = side_hover("Down")) |>
-    add_markers(y = 0, name = "No regulation (0)",
-                marker = list(color = "rgba(100,116,139,0.85)", size = 4 + 16 * fc$none, line = list(width = 0)),
-                customdata = fc$none, hovertemplate = "None %{customdata:.0%}: 0<extra></extra>") |>
-    add_markers(y = ~up50, name = "Typical spread", showlegend = FALSE, hoverinfo = "skip",
+             text = ~dn_txt, textposition = "none", hovertemplate = "%{text}<extra></extra>") |>
+    add_markers(y = 0, name = "None (0)", text = ~no_txt, hovertemplate = "%{text}<extra></extra>",
+                marker = list(color = "rgba(100,116,139,0.85)", size = 4 + 16 * fc$none, line = list(width = 0))) |>
+    add_markers(y = ~up50, showlegend = FALSE, hoverinfo = "none",
                 marker = list(symbol = "line-ew", size = 10, line = list(color = "#c2410c", width = 2))) |>
-    add_markers(y = ~dn50, showlegend = FALSE, hoverinfo = "skip",
+    add_markers(y = ~dn50, showlegend = FALSE, hoverinfo = "none",
                 marker = list(symbol = "line-ew", size = 10, line = list(color = "#1d4ed8", width = 2))) |>
     chart_layout(xtitle) |>
     layout(barmode = "overlay", bargap = 0.3, xaxis = x_axis(fc, day))
