@@ -129,15 +129,15 @@ if (has_intra) spread_chart(ie, "")
 ## Row {height=48%}
 
 ```{r}
-#| title: "Probability of each direction (Danish time)"
-if (has_da) prob_chart(de, "", day = TRUE) else cat("No day-ahead forecast yet.")
+#| title: "Probability of each direction, per hour (Danish time)"
+if (has_da) prob_chart(de_h, "", day = TRUE) else cat("No day-ahead forecast yet.")
 ```
 
 ## Row {height=38%}
 
 ```{r}
 #| title: "Imbalance price minus spot, if up or if down (€/MWh). Darker = more likely"
-if (has_da) spread_chart(de, "", day = TRUE)
+if (has_da) spread_chart(de_h, "", day = TRUE, step = 60)
 ```
 
 # Last 24 hours

@@ -70,7 +70,7 @@ quarter_label <- function(time) {
   lab
 }
 
-prob_chart <- function(fc, xtitle, day = FALSE) {
+prob_chart <- function(fc, xtitle, day = FALSE, step = 15) {
   fc$x <- if (day) dk(fc$time) else fc$label
   p <- plot_ly(fc, x = ~x)
   for (cl in c("down", "none", "up")) {
@@ -86,7 +86,7 @@ prob_chart <- function(fc, xtitle, day = FALSE) {
 # and say little. each side is drawn on its own, darker when it is more likely, and no regulation as a dot at 0
 has_sides <- function(fc) all(c("up50", "dn50") %in% names(fc)) && !anyNA(fc$up50) && !anyNA(fc$dn50)
 
-spread_chart <- function(fc, xtitle, day = FALSE) {
+spread_chart <- function(fc, xtitle, day = FALSE, step = 15) {
   fc$x <- if (day) dk(fc$time) else fc$label
   if (!has_sides(fc)) {   # forecasts saved before 9 nov 2026 only have the overall band
     return(plot_ly(fc, x = ~x) |>
@@ -97,7 +97,7 @@ spread_chart <- function(fc, xtitle, day = FALSE) {
                 hovertemplate = "%{y:.1f} €/MWh<extra>Expected</extra>") |>
       chart_layout(xtitle) |> layout(xaxis = x_axis(fc, day)))
   }
-  w <- if (day) 0.75 * 15 * 60 * 1000 else NULL
+  w <- if (day) 0.75 * step * 60 * 1000 else NULL
   shade <- function(rgb, p) sprintf("rgba(%s,%.2f)", rgb, 0.08 + 0.85 * p)
   side_txt <- function(word, p, m, lo, hi) sprintf("%s %d%%: %+.0f (8 in 10: %+.0f to %+.0f)", word,
                                                   round(100 * p), m, lo, hi)
@@ -178,6 +178,10 @@ if (has_da) {
   da_avg <- de |> summarise(across(c(down, none, up, mean), mean))
   da_dir_counts <- table(factor(c("down", "none", "up")[max.col(as.matrix(de[, c("down", "none", "up")]))],
                                 levels = c("down", "none", "up")))
+  # 96 quarters are hard to read for a whole day, so tomorrow is shown per hour (the average of its quarters)
+  de_h <- de |> mutate(time = floor_date(time, "hour")) |> group_by(time) |>
+    summarise(across(any_of(c("down", "none", "up", "mean", "q10", "q90", "up10", "up50", "up90", "dn10", "dn50", "dn90")),
+                     mean), .groups = "drop")
 }
 
 # live track record, ensemble vs benchmark
