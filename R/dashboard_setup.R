@@ -346,3 +346,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 </script>', format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")), "stale.html")
+
+# summary for the desk page (jacobazu.github.io/desk), which pulls every project into one book
+light <- function(x, green, amber) if (is.na(x)) "amber" else if (x >= green) "green" else if (x >= amber) "amber" else "red"
+desk_fee <- 0.188   # day-ahead fee + imbalance fee, €/MWh (as in R/da_imbalance.R)
+desk <- list(
+  name = "Day-ahead to imbalance (paper)", url = "https://jacobazu.github.io/dk1-imbalance-forecasting/",
+  updated = format(Sys.time(), "%Y-%m-%dT%H:%MZ", tz = "UTC"),
+  status = list(ok = has_da_log && da_next_day >= as_date(with_tz(Sys.time(), "Europe/Copenhagen")),
+                text = if (has_da_log) paste("Positions for", format(da_next_day, "%a %d %b"), "saved") else "No positions yet"),
+  tomorrow = if (has_da_log && da_next_day >= as_date(with_tz(Sys.time(), "Europe/Copenhagen"))) list(
+    date = format(da_next_day), position = sprintf("%d quarters long, %d short, 1 MW", sum(da_next$position == 1), sum(da_next$position == -1)),
+    expected = round(sum(0.25 * (abs(da_next$expected) - desk_fee) * (da_next$position != 0))),
+    bad = if (has_da_live && nrow(da_live) >= 20) round(unname(quantile(da_live$ens, 0.05))) else NULL) else NULL,
+  pnl = if (has_da_live) list(dates = format(as_date(da_live$date)), daily = round(da_live$ens, 2)) else NULL,
+  checks = c(
+    if (has_live) lapply(c("0-1h", "day-ahead"), \(h) {
+      r <- live_tab[live_tab$horizon == h, ]
+      if (nrow(r) == 0) return(NULL)
+      list(name = paste("Forecast beats the benchmark,", if (h == "0-1h") "next hour" else "tomorrow"),
+           value = sprintf("%.1f%%", 100 * r$skill), target = "above 0%", light = light(r$skill, 0.02, 0),
+           detail = paste(format(r$quarters, big.mark = ","), "quarters, lower log loss"))
+    }),
+    if (has_da_live) list(list(
+      name = "Paper P&L differs from zero", value = p_txt(nw_p(da_live$ens)), target = "p < 0.05",
+      light = if (mean(da_live$ens) < 0) "red" else if (!is.na(nw_p(da_live$ens)) && nw_p(da_live$ens) < 0.05) "green" else "amber",
+      detail = sprintf("%s a day over %d days", eur0(mean(da_live$ens)), nrow(da_live))))))
+desk$checks <- Filter(Negate(is.null), desk$checks)
+jsonlite::write_json(desk, "desk.json", auto_unbox = TRUE, null = "null")

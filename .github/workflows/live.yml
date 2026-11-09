@@ -120,7 +120,7 @@ jobs:
           quarto render index.qmd
           quarto render backtest.qmd
           mkdir -p _site
-          cp index.html backtest.html _site/
+          cp index.html backtest.html desk.json _site/
 
       - uses: actions/upload-pages-artifact@v5
         with:
