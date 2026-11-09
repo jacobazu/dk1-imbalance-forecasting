@@ -82,17 +82,41 @@ prob_chart <- function(fc, xtitle, day = FALSE) {
            xaxis = x_axis(fc, day))
 }
 
-# expected spread with the 80% band
+# the spread on each side. the system goes up, down or not at all, so one band over all three would straddle 0
+# and say little. each side is drawn on its own, darker when it is more likely, and no regulation as a dot at 0
+has_sides <- function(fc) all(c("up50", "dn50") %in% names(fc)) && !anyNA(fc$up50) && !anyNA(fc$dn50)
+
 spread_chart <- function(fc, xtitle, day = FALSE) {
   fc$x <- if (day) dk(fc$time) else fc$label
+  if (!has_sides(fc)) {   # forecasts saved before 9 nov 2026 only have the overall band
+    return(plot_ly(fc, x = ~x) |>
+      add_lines(y = ~q10, line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") |>
+      add_lines(y = ~q90, line = list(width = 0), fill = "tonexty", fillcolor = "rgba(249,115,22,0.15)",
+                name = "80% band", hovertemplate = "%{y:.0f} €/MWh<extra>90%</extra>") |>
+      add_lines(y = ~mean, name = "Expected spread", line = list(color = "#f97316", width = 3),
+                hovertemplate = "%{y:.1f} €/MWh<extra>Expected</extra>") |>
+      chart_layout(xtitle) |> layout(xaxis = x_axis(fc, day)))
+  }
+  w <- if (day) 0.75 * 15 * 60 * 1000 else NULL
+  shade <- function(rgb, p) sprintf("rgba(%s,%.2f)", rgb, 0.08 + 0.85 * p)
+  side_hover <- function(word) paste0(word, " %{customdata[0]:.0%}: about %{customdata[1]:+.0f}, ",
+                                      "8 in 10 between %{customdata[2]:+.0f} and %{customdata[3]:+.0f}<extra></extra>")
   plot_ly(fc, x = ~x) |>
-    add_lines(y = ~q10, line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") |>
-    add_lines(y = ~q90, line = list(width = 0), fill = "tonexty", fillcolor = "rgba(249,115,22,0.15)",
-              name = "80% band", hovertemplate = "%{y:.0f} €/MWh<extra>90%</extra>") |>
-    add_lines(y = ~mean, name = "Expected spread", line = list(color = "#f97316", width = 3),
-              hovertemplate = "%{y:.1f} €/MWh<extra>Expected</extra>") |>
+    add_bars(y = ~up90 - up10, base = ~up10, width = w, name = "If up-regulated",
+             marker = list(color = shade("249,115,22", fc$up), line = list(width = 0)),
+             customdata = cbind(fc$up, fc$up50, fc$up10, fc$up90), hovertemplate = side_hover("Up")) |>
+    add_bars(y = ~dn90 - dn10, base = ~dn10, width = w, name = "If down-regulated",
+             marker = list(color = shade("37,99,235", fc$down), line = list(width = 0)),
+             customdata = cbind(fc$down, fc$dn50, fc$dn10, fc$dn90), hovertemplate = side_hover("Down")) |>
+    add_markers(y = 0, name = "No regulation (0)",
+                marker = list(color = "rgba(100,116,139,0.85)", size = 4 + 16 * fc$none, line = list(width = 0)),
+                customdata = fc$none, hovertemplate = "None %{customdata:.0%}: 0<extra></extra>") |>
+    add_markers(y = ~up50, name = "Typical spread", showlegend = FALSE, hoverinfo = "skip",
+                marker = list(symbol = "line-ew", size = 10, line = list(color = "#c2410c", width = 2))) |>
+    add_markers(y = ~dn50, showlegend = FALSE, hoverinfo = "skip",
+                marker = list(symbol = "line-ew", size = 10, line = list(color = "#1d4ed8", width = 2))) |>
     chart_layout(xtitle) |>
-    layout(xaxis = x_axis(fc, day))
+    layout(barmode = "overlay", bargap = 0.3, xaxis = x_axis(fc, day))
 }
 
 # latest intraday forecast (ensemble)
@@ -102,7 +126,7 @@ if (has_intra) {
     mutate(label = quarter_label(time))
   made <- dk(ie$made_utc[1])
   b1 <- min(ie$bucket)
-  h1 <- ie |> filter(bucket == b1) |> summarise(across(c(down, none, up, mean, q10, q90), mean))
+  h1 <- ie |> filter(bucket == b1) |> summarise(across(any_of(c("down", "none", "up", "mean", "q10", "q90", "up50", "dn50")), mean))
   h1_dir <- names(which.max(unlist(h1[, c("down", "none", "up")])))
   ic <- intra |> filter(model == "clim", bucket == b1) |> summarise(across(c(down, none, up), mean))
 }

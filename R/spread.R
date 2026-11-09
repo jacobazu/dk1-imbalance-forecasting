@@ -28,6 +28,15 @@ mixture_quantiles <- function(P, down, up) {
   Q
 }
 
+# each side on its own: the spread if the system goes up, and if it goes down (10%, 50%, 90%).
+# the mixture's band straddles both sides and 0, so it says little about either
+side_quantiles <- function(down, up) {
+  q <- \(x) quantile(x, c(0.1, 0.5, 0.9), type = 1, names = FALSE)
+  Q <- cbind(t(sapply(up, q)), t(sapply(down, q)))
+  colnames(Q) <- c("up10", "up50", "up90", "dn10", "dn50", "dn90")
+  Q
+}
+
 # spreads known at a time, last 60 days
 spread_pools <- function(known, until, days = 60) {
   k <- known[!is.na(known$dir) & !is.na(known$spread) & known$time < until & known$time >= until - days(days), ]

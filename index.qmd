@@ -58,7 +58,7 @@ source("R/dashboard_setup.R", local = knitr::knit_global())
 <div>
 <div class="kpi-label">Expected spread, next hour</div>
 <div class="kpi-value">`r if (has_intra) eur(h1$mean) else "–"`<span class="kpi-unit">€/MWh</span></div>
-<div class="kpi-sub">`r if (has_intra) sprintf("80%% band %s to %s", eur(h1$q10), eur(h1$q90)) else ""`</div>
+<div class="kpi-sub">`r if (!has_intra) "" else if (has_sides(h1)) sprintf("about %s if up, %s if down", eur(h1$up50), eur(h1$dn50)) else sprintf("80%% band %s to %s", eur(h1$q10), eur(h1$q90))`</div>
 </div>
 <div class="kpi-icon"><i class="bi bi-currency-euro"></i></div>
 </div>
@@ -85,7 +85,7 @@ if (has_intra) prob_chart(ie, "") else cat("No intraday forecast yet.")
 ## Row {height=38%}
 
 ```{r}
-#| title: "Imbalance price minus spot price: expected and 80% band (EUR/MWh)"
+#| title: "Imbalance price minus spot price if the system goes up or down: darker is more likely (EUR/MWh)"
 if (has_intra) spread_chart(ie, "")
 ```
 
@@ -136,7 +136,7 @@ if (has_da) prob_chart(de, "", day = TRUE) else cat("No day-ahead forecast yet."
 ## Row {height=38%}
 
 ```{r}
-#| title: "Imbalance price minus spot price: expected and 80% band (EUR/MWh)"
+#| title: "Imbalance price minus spot price if the system goes up or down: darker is more likely (EUR/MWh)"
 if (has_da) spread_chart(de, "", day = TRUE)
 ```
 

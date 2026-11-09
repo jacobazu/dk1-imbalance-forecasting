@@ -37,7 +37,8 @@ fit_models <- function(data, as_of, window = 365) {
 # spread quantiles and mean per row
 add_spread <- function(fc, pools) {
   Q <- spread_forecast(as.matrix(fc[, c("down", "none", "up")]), fc$spot, pools)
-  bind_cols(fc, as_tibble(Q[, c("q10", "q50", "q90", "mean")]))
+  S <- side_quantiles(near_spot(pools$down, fc$spot), near_spot(pools$up, fc$spot))
+  bind_cols(fc, as_tibble(Q[, c("q10", "q50", "q90", "mean")]), as_tibble(S))
 }
 
 # next 4 hours from issue time T
