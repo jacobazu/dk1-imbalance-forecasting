@@ -133,6 +133,23 @@ if (has_intra) {
   ic <- intra |> filter(model == "clim", bucket == b1) |> summarise(across(c(down, none, up), mean))
 }
 
+# what a 1 MW position left open in each of the next hours could earn or lose, per MWh against the spot price.
+# long (more power than sold) is paid the imbalance price, so it earns the spread; short pays it
+position_table <- function(fc) {
+  h <- fc |> mutate(hr = floor_date(dk(time), "hour")) |> group_by(hr) |>
+    summarise(across(c(down, up, mean, q10, q90), mean), .groups = "drop")
+  sgn <- function(x) sprintf("%+.0f", x)
+  rows <- paste0(sprintf(
+    "<tr><td>%s</td><td class='n'>%s</td><td class='n bad'>%s</td><td class='n'>%d in 100</td>
+     <td class='n'>%s</td><td class='n bad'>%s</td><td class='n'>%d in 100</td></tr>",
+    format(h$hr, "%H:00"), sgn(h$mean), sgn(h$q10), round(100 * h$down),
+    sgn(-h$mean), sgn(-h$q90), round(100 * h$up)), collapse = "")
+  paste0("<table class='pos'><tr><th></th><th colspan='3'>Long 1 MW</th><th colspan='3'>Short 1 MW</th></tr>",
+         "<tr><th>Hour</th><th class='n'>Expected</th><th class='n'>1 in 10</th><th class='n'>Loses</th>",
+         "<th class='n'>Expected</th><th class='n'>1 in 10</th><th class='n'>Loses</th></tr>", rows, "</table>",
+         "<p class='pos-note'>€ per MWh against spot. 1 in 10: the bad case. Loses: chance of losing money.</p>")
+}
+
 # last 24 hours: the newest forecast made before each quarter, and what happened
 has_recent <- FALSE
 if (!is.null(intra_all) && !is.null(outcomes)) {

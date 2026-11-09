@@ -86,7 +86,14 @@ if (has_intra) prob_chart(ie, "") else cat("No intraday forecast yet.")
 
 ```{r}
 #| title: "Imbalance price minus spot, if up or if down (€/MWh). Darker = more likely"
+#| width: 64%
 if (has_intra) spread_chart(ie, "")
+```
+
+```{r}
+#| title: "If you end up long or short"
+#| width: 36%
+if (has_intra) htmltools::HTML(position_table(ie))
 ```
 
 # Tomorrow

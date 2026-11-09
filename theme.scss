@@ -146,3 +146,9 @@ a:hover { text-decoration: underline; }
 
 // links in the text
 .card-body p a { text-decoration: underline; font-weight: 600; }
+.pos { width: 100%; font-size: 0.85rem; border-collapse: collapse; }
+.pos th { color: #6b7280; font-weight: 500; text-align: left; padding: 3px 6px; }
+.pos td { padding: 4px 6px; border-top: 1px solid #f1ebe4; }
+.pos .n { text-align: right; font-variant-numeric: tabular-nums; }
+.pos td.bad { color: #b91c1c; }
+.pos-note { color: #6b7280; font-size: 0.78rem; margin-top: 6px; }
