@@ -327,6 +327,27 @@ da_colors <- c(ens = "#f97316", clim = "#6b7280", long = "#16a34a", short = "#25
 eur0 <- function(x) paste0(ifelse(x < 0, "−", ""), format(round(abs(x)), big.mark = ","), " €")
 
 # cumulative P&L per strategy from a daily table
+# does the edge hold? € a day in each half of the backtest, with its 95% range
+half_chart <- function(daily) {
+  mid <- daily$date[ceiling(nrow(daily) / 2)]
+  halves <- list(daily[daily$date <= mid, ], daily[daily$date > mid, ])
+  labs <- sapply(halves, \(h) paste(format(min(as_date(h$date)), "%b %y"), "to", format(max(as_date(h$date)), "%b %y")))
+  p <- plot_ly()
+  for (st in c("ens", "long")) {
+    ci <- t(sapply(halves, \(h) nw_ci(h[[st]])))
+    col <- if (st == "ens") "#f97316" else "#9ca3af"
+    nm  <- if (st == "ens") "Forecast" else "Always long"
+    p <- p |> add_trace(x = labs, y = ci[, "m"], type = "bar", name = nm, marker = list(color = col, cornerradius = 4),
+                        error_y = list(type = "data", symmetric = FALSE, array = ci[, "hi"] - ci[, "m"],
+                                       arrayminus = ci[, "m"] - ci[, "lo"], color = "#1f2328", thickness = 1.2, width = 6),
+                        text = sprintf("%+.0f", ci[, "m"]), textposition = "none",
+                        hovertemplate = paste0(nm, ": %{y:+.0f} € a day<extra></extra>"))
+  }
+  p |> chart_layout() |> layout(barmode = "group", bargap = 0.35, hovermode = "closest",
+                                xaxis = list(categoryorder = "array", categoryarray = labs),
+                                yaxis = list(ticksuffix = " €", zeroline = TRUE, zerolinecolor = "#1f2328", zerolinewidth = 1.5))
+}
+
 cum_chart <- function(daily) {
   few <- nrow(daily) < 20
   p <- plot_ly()

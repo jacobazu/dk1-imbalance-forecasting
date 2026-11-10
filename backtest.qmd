@@ -14,7 +14,7 @@ format:
     include-in-header:
       - text: |
           <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
       - file: stale.html
 execute:
   echo: false
@@ -137,7 +137,7 @@ if (!is.null(calib)) {
 ::: {.card title="The test"}
 1 MW bought or sold on the day-ahead auction and not delivered, so it is settled at the imbalance price. Decided at
 about 10:45 the day before, with the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the
-spot price: long if the expected spread is above the fees (0.188 €/MWh), short if below minus the fees.
+spot price: long if the expected spread is above the fees (0.188 €/MWh), short if below minus the fees. `r da_bt_txt`
 :::
 
 ## Row {height=480px}
@@ -147,13 +147,10 @@ spot price: long if the expected spread is above the fees (0.188 €/MWh), short
 if (!is.null(da_bt_daily)) cum_chart(da_bt_daily)
 ```
 
-::: {.card title="What the backtest shows"}
-
-`r da_bt_txt`
-
-The rule was set and committed before the backtest was run: worth trading only if the mean daily P&L is above 0 with p < 0.05 and it beats the benchmark forecast, always long and always short with p < 0.05 (Holm).
-
-:::
+```{r}
+#| title: "Does the edge hold? € a day in each half of the backtest, with its 95% range"
+if (!is.null(da_bt_daily)) half_chart(da_bt_daily)
+```
 
 ## Row {height=330px .tabset}
 
