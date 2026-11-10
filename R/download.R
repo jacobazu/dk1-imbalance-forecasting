@@ -23,7 +23,8 @@ get_imbalance <- function(from, to) {
 
 # power system right now, minute data as 5-minute averages
 rt_cols <- c("Minutes1UTC", "aFRR_ActivatedDK1", "OffshoreWindPower", "OnshoreWindPower", "SolarPower",
-             "Exchange_DK1_DE", "Exchange_DK1_NO", "Exchange_DK1_SE", "Exchange_DK1_NL", "Exchange_DK1_DK2")
+             "Exchange_DK1_DE", "Exchange_DK1_NO", "Exchange_DK1_SE", "Exchange_DK1_NL", "Exchange_DK1_DK2",
+             "Exchange_DK1_GB")
 get_realtime <- function(from, to) {
   ch <- chunks(from, to, "week")
   bind_rows(lapply(seq_len(nrow(ch)), \(i) {

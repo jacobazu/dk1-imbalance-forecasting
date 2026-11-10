@@ -39,6 +39,7 @@ intraday_cols <- c(state_cols, "lead_in_hour", "down_x_lead", "up_x_lead")
 
 # real-time state up to 10 min before each issue time, errors = actual wind/solar minus energinet's forecast
 make_realtime <- function(rt, fc, issue_times) {
+  if (!"Exchange_DK1_GB" %in% names(rt)) rt$Exchange_DK1_GB <- NA_real_   # viking link, downloaded from nov 2026
   da <- fc |>
     transmute(hour = ymd_hms(HourUTC, tz = "UTC"), type = ForecastType, da = ForecastDayAhead) |>
     group_by(hour, type) |>
@@ -51,7 +52,7 @@ make_realtime <- function(rt, fc, issue_times) {
               wind_err  = OffshoreWindPower + OnshoreWindPower - `Offshore Wind` - `Onshore Wind`,
               solar_err = SolarPower - Solar,
               flow_de = Exchange_DK1_DE, flow_no = Exchange_DK1_NO, flow_se = Exchange_DK1_SE,
-              flow_nl = Exchange_DK1_NL, flow_dk2 = Exchange_DK1_DK2) |>
+              flow_nl = Exchange_DK1_NL, flow_dk2 = Exchange_DK1_DK2, flow_gb = Exchange_DK1_GB) |>
     arrange(time)
   # mean of the last k 5-minute values
   win <- function(v, k) {
@@ -67,7 +68,8 @@ make_realtime <- function(rt, fc, issue_times) {
          wind_err  = win(x$wind_err, 12) / 1000,  solar_err = win(x$solar_err, 12) / 1000,
          flow_de   = win(x$flow_de, 12) / 1000,   flow_no = win(x$flow_no, 12) / 1000,
          flow_se   = win(x$flow_se, 12) / 1000,   flow_nl = win(x$flow_nl, 12) / 1000,
-         flow_dk2  = win(x$flow_dk2, 12) / 1000)
+         flow_dk2  = win(x$flow_dk2, 12) / 1000,  flow_gb = win(x$flow_gb, 12) / 1000)
 }
 realtime_cols <- c("afrr_15", "afrr_60", "wind_err", "solar_err", "flow_de", "flow_no", "flow_se",
                    "flow_nl", "flow_dk2")
+realtime_extra <- c("flow_gb")   # being tested, not in the live model yet

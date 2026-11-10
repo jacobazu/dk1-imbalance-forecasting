@@ -17,12 +17,14 @@ issues <- seq(as_datetime("2025-03-12 00:00:00"), max(q$time) - hours(4), by = "
 base <- c("hour", "qh", "wday", "holiday", "new_rule", "spot", "spot_rel", "spot_rank", "spot_diff",
           "spot_neg", "wpow", "solar")
 # real-time inputs only help in the first hour, so only used there
-cols_for <- function(b) c(intraday_cols, if (b == 1) realtime_cols)
+# EXTRA=gb adds the viking link flow, to test it against the model without it
+extra <- if (Sys.getenv("EXTRA") == "gb") realtime_extra else NULL
+cols_for <- function(b) c(intraday_cols, if (b == 1) c(realtime_cols, extra))
 d <- make_issues(q, make_state(q, imb), issues) |>
   left_join(make_realtime(readRDS("data/raw/realtime.rds"), readRDS("data/raw/energinet_forecasts.rds"),
                           issues), by = "issue")
 d <- d[complete.cases(d[, c(base, intraday_cols)]) & !is.na(d$dir), ]
-d <- d[d$bucket > 1 | complete.cases(d[, realtime_cols]), ] |>
+d <- d[d$bucket > 1 | complete.cases(d[, c(realtime_cols, extra)]), ] |>
   mutate(date = as_date(with_tz(time, "Europe/Copenhagen")))
 
 window <- 365
@@ -47,7 +49,7 @@ out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)
-saveRDS(fc, "data/processed/intraday_forecasts.rds")
+saveRDS(fc, Sys.getenv("OUT", "data/processed/intraday_forecasts.rds"))
 fc |>
   mutate(ll = log_loss(cbind(down, none, up), dir)) |>
   group_by(bucket, model) |>
