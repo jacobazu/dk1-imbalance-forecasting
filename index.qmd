@@ -255,6 +255,25 @@ if (has_live) {
 ```
 
 ```{r}
+#| title: "Live: when we say X%, how often it happens (next hour)"
+if (!is.null(live_calib) && nrow(live_calib) > 0) {
+  p <- plot_ly() |>
+    add_lines(x = c(0, 1), y = c(0, 1), line = list(color = "#cfc6bb", dash = "dot"), name = "Perfect", hoverinfo = "skip")
+  for (cl in c("down", "up")) {
+    x <- filter(live_calib, class == cl)
+    p <- p |> add_trace(data = x, x = ~forecast, y = ~observed, type = "scatter", mode = "lines+markers",
+                        name = dir_labels[[cl]], line = list(color = dir_colors[[cl]], width = 2.5),
+                        marker = list(color = dir_colors[[cl]], size = ~pmin(6 + sqrt(n) / 2, 22)),
+                        text = ~format(n, big.mark = ","),
+                        hovertemplate = "said %{x:.0%}, happened %{y:.0%} (%{text} quarters)<extra></extra>")
+  }
+  p |> chart_layout("Forecast probability", "How often it happened") |>
+    layout(xaxis = list(tickformat = ".0%", range = c(0, 1)), yaxis = list(tickformat = ".0%", range = c(0, 1)),
+           hovermode = "closest")
+} else cat("Needs scored quarters.")
+```
+
+```{r}
 #| title: "Live skill so far (cumulative)"
 if (has_live) {
   cum <- live |>

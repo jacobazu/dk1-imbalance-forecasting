@@ -66,6 +66,21 @@ dk    <- function(t) with_tz(t, "Europe/Copenhagen")
 skill_of <- function(h, m = "ens") scores$skill[scores$horizon == h & scores$model == m]
 test_of  <- function(h, a = "ens", b = "clim") tests[tests$horizon == h & tests$model_a == a & tests$model_b == b, ]
 
+# live calibration, next hour: forecast probability against how often it happened, 10% bins
+live_calib <- if (!is.null(intra_all) && !is.null(outcomes)) {
+  intra_all |>
+    filter(model == "ens", bucket == 1) |>
+    mutate(time = ymd_hms(time, tz = "UTC")) |>
+    inner_join(outcomes |> mutate(time = ymd_hms(time, tz = "UTC")) |> distinct(time, .keep_all = TRUE) |> select(time, dir),
+               by = "time") |>
+    tidyr::pivot_longer(c(down, up), names_to = "class", values_to = "p") |>
+    mutate(hit = (class == "up" & dir == 1) | (class == "down" & dir == -1),
+           bin = pmin(floor(p * 10) / 10, 0.9) + 0.05) |>
+    group_by(class, bin) |>
+    summarise(n = n(), forecast = mean(p), observed = mean(hit), .groups = "drop") |>
+    filter(n >= 20)
+}
+
 chart_layout <- function(p, xtitle = "", ytitle = "") {
   p |>
     layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
