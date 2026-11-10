@@ -21,6 +21,7 @@ library(tidyr)
 library(lubridate)
 library(readr)
 library(parallel)
+source("R/parallel.R")
 library(xgboost)
 source("R/holidays.R")
 source("R/features.R")
@@ -46,7 +47,7 @@ test_days <- full_days[full_days %in% pf$date & full_days >= as_date("2025-11-02
 refits    <- seq(as_date("2025-11-01"), max(test_days), by = "7 days")
 
 t0 <- Sys.time()
-out <- mclapply(refits, \(R) tryCatch({
+out <- par_lapply(refits, \(R) tryCatch({
   # fit on day R, used for the decisions on R to R+6 (days R+1 to R+7)
   train <- q[ok & q$date >= R - window & q$date < R, ]
   m_mnl <- fit_mnl(train)
@@ -69,7 +70,7 @@ out <- mclapply(refits, \(R) tryCatch({
              spread = test$spread, model = m, as_tibble(P[[m]]), expected = expected)
     }))
   }))
-}, error = \(e) { message("refit ", R, ": ", conditionMessage(e)); NULL }), mc.cores = cores)
+}, error = \(e) { message("refit ", R, ": ", conditionMessage(e)); NULL }), cores = cores)
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)

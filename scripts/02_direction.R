@@ -4,6 +4,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(parallel)
+source("R/parallel.R")
 library(xgboost)
 source("R/holidays.R")
 source("R/features.R")
@@ -21,7 +22,7 @@ full_days <- q |> filter(ok) |> count(date) |> filter(n >= 92) |> pull(date)
 refits    <- seq(as_date("2025-11-01"), max(full_days), by = "7 days")
 
 t0 <- Sys.time()
-out <- mclapply(refits, \(R) tryCatch({
+out <- par_lapply(refits, \(R) tryCatch({
   # fit on day R, used for forecasts made R to R+6
   train <- q[ok & q$date >= R - window & q$date < R, ]
   m_mnl <- fit_mnl(train)
@@ -35,7 +36,7 @@ out <- mclapply(refits, \(R) tryCatch({
     bind_rows(lapply(names(P), \(m) tibble(time = test$time, date = D, hour = test$hour, dir = test$dir,
                                            model = m, as_tibble(P[[m]]))))
   }))
-}, error = \(e) NULL), mc.cores = cores)
+}, error = \(e) NULL), cores = cores)
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)

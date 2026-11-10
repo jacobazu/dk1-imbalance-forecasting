@@ -4,6 +4,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(parallel)
+source("R/parallel.R")
 library(xgboost)
 source("R/holidays.R")
 source("R/features.R")
@@ -33,7 +34,7 @@ refits <- seq(as_datetime("2025-11-01 00:00:00", tz = "Europe/Copenhagen"), max(
 jobs   <- crossing(refit = refits, b = if (nzchar(Sys.getenv("BUCKETS"))) as.integer(strsplit(Sys.getenv("BUCKETS"), ",")[[1]]) else 1:4)
 
 t0 <- Sys.time()
-out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
+out <- par_lapply(seq_len(nrow(jobs)), \(j) tryCatch({
   R <- jobs$refit[j]; b <- jobs$b[j]; cols <- cols_for(b)
   train <- d |> filter(bucket == b, time < R - minutes(60), time >= R - days(window))
   test  <- d |> filter(bucket == b, issue >= R, issue < R + days(7))
@@ -45,7 +46,7 @@ out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
   bind_rows(lapply(names(P), \(m) tibble(issue = test$issue, time = test$time, bucket = b,
                                          lead = test$lead, dir = test$dir, model = m,
                                          as_tibble(P[[m]]))))
-}, error = \(e) NULL), mc.cores = cores)
+}, error = \(e) NULL), cores = cores)
 cat("done in", round(difftime(Sys.time(), t0, units = "mins"), 1), "minutes\n")
 
 fc <- bind_rows(out)

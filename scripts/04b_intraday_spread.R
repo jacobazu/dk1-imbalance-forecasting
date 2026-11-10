@@ -4,6 +4,7 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(parallel)
+source("R/parallel.R")
 source("R/holidays.R")
 source("R/features.R")
 source("R/spread.R")
@@ -15,7 +16,7 @@ known <- q |> filter(!is.na(dir), !is.na(spread))
 id <- readRDS("data/processed/intraday_forecasts.rds") |> filter(model %in% c("ens", "clim"))
 cores <- as.integer(Sys.getenv("CORES", max(1, detectCores() - 1)))
 
-out <- mclapply(split(id, id$issue), \(x) {
+out <- par_lapply(split(id, id$issue), \(x) {
   until <- x$issue[1] - minutes(60)
   test  <- known[match(unique(x$time), known$time), ]
   test  <- test[!is.na(test$time), ]
@@ -31,7 +32,7 @@ out <- mclapply(split(id, id$issue), \(x) {
   bind_rows(lapply(names(res), \(m) tibble(issue = x$issue[1], time = test$time, bucket = b,
                                            date = test$date, spread = test$spread, model = m,
                                            as_tibble(res[[m]]))))
-}, mc.cores = cores)
+}, cores = cores)
 fc <- bind_rows(out)
 saveRDS(fc, "data/processed/intraday_spread_forecasts.rds")
 
