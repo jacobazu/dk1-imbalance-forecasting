@@ -45,7 +45,7 @@ if (has_eval) {
   sk <- scores |> filter(model %in% c("ens", "mnl", "xgb")) |>
     mutate(h = factor(horizon_labels[horizon], levels = horizon_labels))
   p <- plot_ly()
-  cols <- c(ens = "#f97316", mnl = "#2563eb", xgb = "#16a34a")
+  cols <- c(ens = "#1b66ad", mnl = "#c2522d", xgb = "#16a34a")
   for (m in names(cols)) {
     x <- sk |> filter(model == m) |> arrange(h)
     p <- p |> add_trace(data = x, x = ~h, y = ~skill, type = "scatter", mode = "lines+markers",
@@ -56,7 +56,7 @@ if (has_eval) {
   p |> chart_layout("Forecast horizon") |>
     layout(yaxis = list(tickformat = ".0%", zeroline = TRUE),
            shapes = list(list(type = "line", xref = "paper", x0 = 0, x1 = 1, y0 = 0, y1 = 0,
-                              line = list(color = "#cfc6bb", dash = "dot"))))
+                              line = list(color = "#c3c8cf", dash = "dot"))))
 }
 ```
 
@@ -114,7 +114,7 @@ if (has_spread) {
 #| title: "Calibration"
 if (!is.null(calib)) {
   p <- plot_ly() |>
-    add_lines(x = c(0, 1), y = c(0, 1), line = list(color = "#cfc6bb", dash = "dot"), name = "Perfect", hoverinfo = "skip")
+    add_lines(x = c(0, 1), y = c(0, 1), line = list(color = "#c3c8cf", dash = "dot"), name = "Perfect", hoverinfo = "skip")
   for (h in c("0-1h", "day-ahead")) for (cl in c("down", "up")) {
     x <- calib |> filter(horizon == h, class == cl)
     p <- p |> add_trace(data = x, x = ~forecast, y = ~observed, type = "scatter", mode = "lines+markers",
