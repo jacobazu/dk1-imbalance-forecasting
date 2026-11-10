@@ -14,7 +14,7 @@ format:
     include-in-header:
       - text: |
           <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
       - file: stale.html
 execute:
   echo: false
@@ -32,7 +32,7 @@ source("R/dashboard_setup.R", local = knitr::knit_global())
 ## Row {height=14%}
 
 ::: {.card}
-<div class="kpi" style="--accent: #1b66ad">
+<div class="kpi" style="--accent: #2fa3b8">
 <div>
 <div class="kpi-label">Forecast made</div>
 <div class="kpi-value">`r if (has_intra) format(made, "%H:%M") else "–"`</div>
@@ -54,7 +54,7 @@ source("R/dashboard_setup.R", local = knitr::knit_global())
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #16a34a">
+<div class="kpi" style="--accent: #4fd08a">
 <div>
 <div class="kpi-label">Expected spread, next hour</div>
 <div class="kpi-value">`r if (has_intra) eur(h1$mean) else "–"`<span class="kpi-unit">€/MWh</span></div>
@@ -65,7 +65,7 @@ source("R/dashboard_setup.R", local = knitr::knit_global())
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #6b7280">
+<div class="kpi" style="--accent: #8fa6bd">
 <div>
 <div class="kpi-label">Live skill vs benchmark, next hour</div>
 <div class="kpi-value">`r if (has_live) live_skill("0-1h") else "–"`</div>
@@ -101,7 +101,7 @@ if (has_intra) position_chart(ie)
 ## Row {height=14%}
 
 ::: {.card}
-<div class="kpi" style="--accent: #1b66ad">
+<div class="kpi" style="--accent: #2fa3b8">
 <div>
 <div class="kpi-label">Day</div>
 <div class="kpi-value">`r if (has_da) format(da_day, "%a %d %b") else "–"`</div>
@@ -112,7 +112,7 @@ if (has_intra) position_chart(ie)
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #c2522d">
+<div class="kpi" style="--accent: #c97d2c">
 <div>
 <div class="kpi-label">Average probability of down / up</div>
 <div class="kpi-value">`r if (has_da) paste(pct(da_avg$down), "/", pct(da_avg$up)) else "–"`</div>
@@ -123,7 +123,7 @@ if (has_intra) position_chart(ie)
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #6b7280">
+<div class="kpi" style="--accent: #8fa6bd">
 <div>
 <div class="kpi-label">Live skill vs benchmark, day-ahead</div>
 <div class="kpi-value">`r if (has_live) live_skill("day-ahead") else "–"`</div>
@@ -152,7 +152,7 @@ if (has_da) spread_chart(de_h, "", day = TRUE, step = 60)
 ## Row {height=14%}
 
 ::: {.card}
-<div class="kpi" style="--accent: #1b66ad">
+<div class="kpi" style="--accent: #2fa3b8">
 <div>
 <div class="kpi-label">Quarters known</div>
 <div class="kpi-value">`r if (has_recent) nrow(re) else "–"`</div>
@@ -163,7 +163,7 @@ if (has_da) spread_chart(de_h, "", day = TRUE, step = 60)
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #16a34a">
+<div class="kpi" style="--accent: #4fd08a">
 <div>
 <div class="kpi-label">Right direction, forecast</div>
 <div class="kpi-value">`r if (has_recent) pct(mean(re$hit)) else "–"`</div>
@@ -174,7 +174,7 @@ if (has_da) spread_chart(de_h, "", day = TRUE, step = 60)
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #6b7280">
+<div class="kpi" style="--accent: #8fa6bd">
 <div>
 <div class="kpi-label">Right direction, benchmark</div>
 <div class="kpi-value">`r if (has_recent) pct(mean(rc$hit)) else "–"`</div>
@@ -203,7 +203,7 @@ if (has_recent) recent_spread_chart(re)
 ## Row {height=14%}
 
 ::: {.card}
-<div class="kpi" style="--accent: #1b66ad">
+<div class="kpi" style="--accent: #2fa3b8">
 <div>
 <div class="kpi-label">Quarters scored</div>
 <div class="kpi-value">`r if (has_live) format(nrow(live), big.mark = ",") else 0`</div>
@@ -214,7 +214,7 @@ if (has_recent) recent_spread_chart(re)
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #16a34a">
+<div class="kpi" style="--accent: #4fd08a">
 <div>
 <div class="kpi-label">Live skill, next hour</div>
 <div class="kpi-value">`r if (has_live) live_skill("0-1h") else "\u2013"`</div>
@@ -225,7 +225,7 @@ if (has_recent) recent_spread_chart(re)
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #6b7280">
+<div class="kpi" style="--accent: #8fa6bd">
 <div>
 <div class="kpi-label">Live skill, day-ahead</div>
 <div class="kpi-value">`r if (has_live) live_skill("day-ahead") else "\u2013"`</div>
@@ -242,14 +242,14 @@ if (has_recent) recent_spread_chart(re)
 if (has_live) {
   lt <- live_tab |> mutate(h = factor(as.character(h), rev(as.character(h))))
   plot_ly(lt, y = ~h, x = ~skill, type = "bar", orientation = "h",
-          marker = list(color = ifelse(lt$skill > 0, "#16a34a", "#dc2626")),
+          marker = list(color = ifelse(lt$skill > 0, "#4fd08a", "#ff7a7a")),
           text = ~pct(skill, 1), textposition = "outside", cliponaxis = FALSE,
           customdata = ~format(quarters, big.mark = ","),
           hovertemplate = "%{y}: %{x:.1%} lower log loss, %{customdata} quarters<extra></extra>") |>
     layout(xaxis = list(tickformat = ".0%", range = c(min(0, min(lt$skill)) - 0.01, max(lt$skill) * 1.3), zeroline = TRUE,
-                        zerolinecolor = "#1f2328", gridcolor = "#eceef1", title = ""),
+                        zerolinecolor = "#e9f0f7", gridcolor = "rgba(255,255,255,0.07)", title = ""),
            yaxis = list(title = ""), margin = list(l = 10, r = 20, t = 5, b = 25), bargap = 0.45,
-           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#6b7280")) |>
+           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#8fa6bd")) |>
     config(displayModeBar = FALSE)
 }
 ```
@@ -258,7 +258,7 @@ if (has_live) {
 #| title: "Live: when we say X%, how often it happens (next hour)"
 if (!is.null(live_calib) && nrow(live_calib) > 0) {
   p <- plot_ly() |>
-    add_lines(x = c(0, 1), y = c(0, 1), line = list(color = "#c3c8cf", dash = "dot"), name = "Perfect", hoverinfo = "skip")
+    add_lines(x = c(0, 1), y = c(0, 1), line = list(color = "rgba(255,255,255,0.28)", dash = "dot"), name = "Perfect", hoverinfo = "skip")
   for (cl in c("down", "up")) {
     x <- filter(live_calib, class == cl)
     p <- p |> add_trace(data = x, x = ~forecast, y = ~observed, type = "scatter", mode = "lines+markers",
@@ -283,7 +283,7 @@ if (has_live) {
     group_by(horizon, day) |>
     summarise(skill = last(skill), n = n(), .groups = "drop") |>
     mutate(h = factor(horizon_labels[horizon], levels = horizon_labels))
-  h_colors <- setNames(c("#1b66ad", "#4a8bc6", "#bcd3ea", "#bcd3ea", "#c2522d"), horizon_labels)
+  h_colors <- setNames(c("#2fa3b8", "#62d6e8", "#2b4a6b", "#2b4a6b", "#c97d2c"), horizon_labels)
   plot_ly(cum, x = ~day, y = ~skill, color = ~h, colors = h_colors, type = "scatter",
           mode = "lines+markers", line = list(width = 2.5), marker = list(size = 7),
           hovertemplate = "%{y:.1%}") |>
@@ -300,7 +300,7 @@ if (has_live) {
 ## Row {height=14%}
 
 ::: {.card}
-<div class="kpi" style="--accent: #1b66ad">
+<div class="kpi" style="--accent: #2fa3b8">
 <div>
 <div class="kpi-label">Latest positions</div>
 <div class="kpi-value">`r if (has_da_log) sprintf("%d long · %d short", sum(da_next$position == 1), sum(da_next$position == -1)) else "–"`</div>
@@ -311,7 +311,7 @@ if (has_live) {
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #16a34a">
+<div class="kpi" style="--accent: #4fd08a">
 <div>
 <div class="kpi-label">Paper P&L so far</div>
 <div class="kpi-value">`r if (has_da_live) eur0(sum(da_live$ens)) else "–"`</div>
@@ -322,7 +322,7 @@ if (has_live) {
 :::
 
 ::: {.card}
-<div class="kpi" style="--accent: #6b7280">
+<div class="kpi" style="--accent: #8fa6bd">
 <div>
 <div class="kpi-label">Days in profit</div>
 <div class="kpi-value">`r if (has_da_live) sprintf("%d of %d", sum(da_live$ens > 0), nrow(da_live)) else "–"`</div>
@@ -337,7 +337,7 @@ if (has_live) {
 ```{r}
 #| title: "Latest positions: expected spread per quarter (€/MWh). Long above the fees, short below"
 if (has_da_log) {
-  pos_col <- c("-1" = "#c2522d", "0" = "#cbd5e1", "1" = "#16a34a")
+  pos_col <- c("-1" = "#c97d2c", "0" = "rgba(255,255,255,0.2)", "1" = "#4fd08a")
   pos_lab <- c("-1" = "Short", "0" = "None", "1" = "Long")
   p <- plot_ly()
   for (k in c("1", "-1", "0")) {

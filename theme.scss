@@ -1,73 +1,76 @@
 /*-- scss:defaults --*/
 
-// light theme with orange
-$font-family-sans-serif: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+// dark blue, one aqua, amber for the hour that stands out
+$font-family-sans-serif: "Instrument Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 
-$body-bg:      #f4f5f7;
-$body-color:   #1f2328;
-$text-muted:   #6b7280;
-$primary:      #1b66ad;
-$success:      #16a34a;
-$danger:       #dc2626;
-$link-color:   #124d85;
-$border-color: #e1e4e8;
+$body-bg:      #0c1c30;
+$body-color:   #e9f0f7;
+$text-muted:   #8fa6bd;
+$primary:      #62d6e8;
+$success:      #4fd08a;
+$danger:       #ff7a7a;
+$link-color:   #62d6e8;
+$border-color: rgba(255, 255, 255, 0.08);
 
-$navbar-bg: #ffffff;
-$navbar-fg: #1f2328;
+$navbar-bg: #0c1c30;
+$navbar-fg: #e9f0f7;
 
-$card-bg:            #ffffff;
-$card-border-color:  #e1e4e8;
-$card-border-radius: 8px;
+$card-bg:            transparent;
+$card-border-color:  rgba(255, 255, 255, 0.08);
+$card-border-radius: 14px;
 $card-cap-bg:        transparent;
-$card-cap-color:     #1f2328;
+$card-cap-color:     #e9f0f7;
 
 
 /*-- scss:rules --*/
 
-// background
+html, body { background: #0a1626; }
 body,
 .quarto-dashboard .page-layout-custom,
 .quarto-dashboard .dashboard-page {
-  background: #f4f5f7 !important;
+  background: radial-gradient(1200px 700px at 70% 0%, #15324f 0%, #0c1c30 55%, #0a1626 100%) fixed !important;
+  color: #e9f0f7;
 }
 
 // navbar
 .navbar {
-  background: #ffffff !important;
-  border-bottom: 1px solid #e1e4e8;
+  background: transparent !important;
+  border-bottom: none;
+  padding-top: 0.6rem;
 }
-.navbar .navbar-title { font-weight: 700; color: #1f2328 !important; }
-.navbar .nav-link { color: #6b7280 !important; font-weight: 500; }
-.navbar .nav-link.active,
-.navbar .nav-link:hover { color: #1f2328 !important; }
-.navbar .nav-link.active { box-shadow: inset 0 -2px 0 #1b66ad; background: transparent !important; }
-.navbar .bi { color: #1f2328; }
+.navbar .navbar-title { font-weight: 600; color: #e9f0f7 !important; }
+.navbar .nav-link { color: #8fa6bd !important; font-weight: 500; border-radius: 99px; padding: 0.35rem 0.9rem !important; }
+.navbar .nav-link:hover { color: #e9f0f7 !important; }
+.navbar .nav-link.active { color: #0c1c30 !important; background: #e9f0f7 !important; }
+.navbar .bi { color: #e9f0f7; }
+.navbar .quarto-dashboard-links a, .navbar .btn { color: #8fa6bd !important; }
 
-// cards
+// panes
 .quarto-dashboard .card {
-  background: #ffffff !important;
-  border: 1px solid #e1e4e8;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
   box-shadow: none;
   overflow: hidden;
+  color: #e9f0f7;
 }
+.quarto-dashboard .card.bare { background: transparent !important; border: none; }
+.quarto-dashboard .card.bare > .card-body { padding: 0 0.5rem; }
 .quarto-dashboard .card-header {
   background: transparent;
   border-bottom: none;
-  color: #1f2328;
-  font-weight: 700;
+  color: #e9f0f7;
+  font-weight: 500;
   font-size: 1rem;
   padding-top: 1rem;
 }
-
-// long text scrolls
-.quarto-dashboard .card-body { overflow-y: auto; }
-
-// no expand button
+.quarto-dashboard .card-body { overflow-y: auto; color: #e9f0f7; }
+.quarto-dashboard .card-body p, .quarto-dashboard .card-body li { color: #c9d6e2; }
+.quarto-dashboard .card-body strong, .quarto-dashboard .card-body b { color: #e9f0f7; }
 .bslib-full-screen-enter { display: none !important; }
+.bslib-grid, .bslib-sidebar-layout, .bslib-page-fill { background: transparent !important; }
 
-// kpi tiles
-// needed, else divs stack
+// number tiles
 .kpi {
   height: 100%;
   display: flex !important;
@@ -79,76 +82,73 @@ body,
 }
 .kpi > div:first-child,
 .kpi-label, .kpi-value, .kpi-sub { display: block !important; }
-.kpi-label {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: #6b7280;
-}
-.kpi-value {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #1f2328;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-.kpi-unit  { font-size: 0.85rem; font-weight: 500; color: #6b7280; margin-left: 0.15rem; }
-.kpi-sub   { font-size: 0.82rem; color: #6b7280; }
-.kpi-up    { color: #dc2626; font-weight: 700; }
-.kpi-down  { color: #16a34a; font-weight: 700; }
+.kpi-label { font-size: 0.82rem; color: #8fa6bd; }
+.kpi-value { font-size: 1.9rem; font-weight: 500; letter-spacing: -0.02em; color: #e9f0f7; line-height: 1.2; white-space: nowrap; }
+.kpi-unit  { font-size: 0.85rem; font-weight: 400; color: #8fa6bd; margin-left: 0.2rem; letter-spacing: 0; }
+.kpi-sub   { font-size: 0.82rem; color: #8fa6bd; }
+.kpi-up    { color: #ff7a7a; font-weight: 600; }
+.kpi-down  { color: #4fd08a; font-weight: 600; }
+.kpi-icon  { display: none !important; }
 
-// icon chip
-.kpi-icon {
-  flex: 0 0 46px !important;
-  width: 46px;
-  height: 46px;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 12px;
-  font-size: 1.25rem;
-  color: var(--accent, #1b66ad);
-  background: color-mix(in srgb, var(--accent, #1b66ad) 14%, white);
+@media (min-width: 576px) and (max-width: 1199.98px) {
+  .kpi-value { font-size: 1.4rem; }
+  .kpi-sub { font-size: 0.75rem; line-height: 1.3; }
 }
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .kpi-label { font-size: 0.72rem; }
+  .kpi-value { font-size: 1.1rem; white-space: normal; }
+  .kpi-unit { white-space: nowrap; }
+  .kpi-sub { display: none !important; }
+}
+.card-body:has(> .kpi) { overflow: hidden !important; }
 
 // tables
-.quarto-dashboard table th { color: #6b7280; font-weight: 600; font-size: 0.8rem; }
+.quarto-dashboard table { color: #e9f0f7; --bs-table-bg: transparent; --bs-table-color: #e9f0f7; --bs-table-striped-bg: rgba(255,255,255,.03); --bs-table-striped-color: #e9f0f7; }
+.quarto-dashboard table th { color: #8fa6bd; font-weight: 500; font-size: 0.8rem; }
 .quarto-dashboard table td,
-.quarto-dashboard table th { border-color: #e1e4e8; }
-.quarto-dashboard table > :not(:first-child) { border-top: 1px solid #e1e4e8 !important; }
+.quarto-dashboard table th { border-color: rgba(255, 255, 255, 0.08); background: transparent; color: inherit; }
+.quarto-dashboard table > :not(:first-child) { border-top: 1px solid rgba(255, 255, 255, 0.08) !important; }
 
-// model buttons
-.model-buttons {
-  position: absolute;
-  top: 6px;
-  left: 12px;
-  z-index: 10;
-  display: flex;
-  gap: 10px;
-}
-.model-buttons button {
-  border: 1px solid #bcd3ea;
-  background: #eef4fa;
-  color: #1f2328;
+// model buttons on the charts
+.model-buttons { position: absolute; top: 6px; left: 12px; z-index: 10; display: flex; gap: 8px; }
+.model-buttons button, .fv-pills button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: #8fa6bd;
   border-radius: 999px;
   padding: 4px 14px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
-.model-buttons button:hover { background: #dbe7f3; }
-.model-buttons button.active { background: #1b66ad; border-color: #1b66ad; color: #ffffff; }
+.model-buttons button:hover, .fv-pills button:hover { color: #e9f0f7; border-color: rgba(255, 255, 255, 0.3); }
+.model-buttons button.active, .fv-pills button.on { background: #e9f0f7; border-color: #e9f0f7; color: #0c1c30; }
 
-// links
+.tag { display: inline-block; padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,.08); font-weight: 500; font-size: 0.85rem; }
+.tag.good { background: rgba(79, 208, 138, 0.16); color: #7fe3ae; }
+
+.kpi-value, .kpi-sub, .combo-stats b, .quarto-dashboard table td, #fv { font-variant-numeric: tabular-nums; }
+
 a { text-decoration: none; }
+.card-body p a { text-decoration: underline; font-weight: 500; }
 a:hover { text-decoration: underline; }
 .navbar a:hover { text-decoration: none; }
 
-// links in the text
-.card-body p a { text-decoration: underline; font-weight: 600; }
+.risk-line { display: block !important; font-size: 1rem; line-height: 1.45; padding: 2px 4px; }
+.risk-check { color: #8fa6bd; font-size: 0.9rem; }
+.trust { white-space: nowrap; padding: 1px 6px; border-radius: 4px; font-size: 0.85rem; }
+.trust.ok { background: rgba(79, 208, 138, 0.16); color: #7fe3ae; }
+.trust.warn { background: rgba(245, 196, 81, 0.16); color: #f5c451; }
+.trust.bad { background: rgba(255, 122, 122, 0.16); color: #ff9c9c; }
+.risk-m { display: block; }
+.strip { display: block; margin-top: 6px; max-height: 34px; }
+
 .pos { width: 100%; font-size: 0.85rem; border-collapse: collapse; }
-.pos th { color: #6b7280; font-weight: 500; text-align: left; padding: 3px 6px; }
-.pos td { padding: 4px 6px; border-top: 1px solid #eceef1; }
+.pos th { color: #8fa6bd; font-weight: 500; text-align: left; padding: 3px 6px; }
+.pos td { padding: 4px 6px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .pos .n { text-align: right; font-variant-numeric: tabular-nums; }
-.pos td.bad { color: #b91c1c; }
-.pos-note { color: #6b7280; font-size: 0.78rem; margin-top: 6px; }
+.pos td.bad { color: #ff9c9c; }
+.pos-note { color: #8fa6bd; font-size: 0.78rem; margin-top: 6px; }
+
+body, .navbar, .quarto-dashboard .card, button { font-family: "Instrument Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+code { background: rgba(255, 255, 255, 0.08) !important; color: #c9d6e2 !important; border-radius: 4px; padding: 1px 6px; }
