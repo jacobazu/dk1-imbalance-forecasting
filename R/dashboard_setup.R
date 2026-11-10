@@ -36,6 +36,30 @@ info_v <- function(n) info$value[info$name == n]
 
 pct   <- function(x, d = 0) paste0(format(round(100 * x, d), nsmall = d), "%")
 eur   <- function(x) paste0(if (x >= 0) "+" else "−", format(round(abs(x)), big.mark = ","))
+nw_ci <- function(d, lag = 7) {
+  n <- length(d); u <- d - mean(d); v <- sum(u^2) / n
+  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
+  se <- sqrt(v / (n - 1)); c(m = mean(d), lo = mean(d) - qt(0.975, n - 1) * se, hi = mean(d) + qt(0.975, n - 1) * se)
+}
+# € a day with a 95% range: if the range crosses zero, we can't tell it apart from luck yet
+ci_chart <- function(d) {
+  r <- rbind(nw_ci(d$ens), nw_ci(d$ens - d$long))
+  lab <- c("Forecast strategy", "Better than always long?")
+  col <- ifelse(r[, "lo"] > 0, "#16a34a", ifelse(r[, "hi"] < 0, "#dc2626", "#9ca3af"))
+  lim <- max(abs(r)) * 1.25
+  plot_ly() |>
+    add_trace(x = c(rbind(r[, "lo"], r[, "hi"], NA)), y = c(rbind(lab, lab, NA)), type = "scatter", mode = "lines",
+              line = list(color = "#d6cdc2", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
+    add_trace(x = r[, "m"], y = lab, type = "scatter", mode = "markers+text", marker = list(size = 16, color = col),
+              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#1f2328"),
+              customdata = sprintf("%+.0f to %+.0f", r[, "lo"], r[, "hi"]),
+              hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
+    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1f2328", zerolinewidth = 2,
+                        ticksuffix = " €", gridcolor = "#f1ebe4", title = ""),
+           yaxis = list(title = "", autorange = "reversed"), margin = list(l = 10, r = 20, t = 30, b = 30),
+           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#6b7280")) |>
+    config(displayModeBar = FALSE)
+}
 p_txt <- function(p) if (p < 0.001) "p < 0.001" else paste("p =", format(round(p, 3), nsmall = 3))
 dk    <- function(t) with_tz(t, "Europe/Copenhagen")
 
@@ -148,6 +172,36 @@ position_table <- function(fc) {
          "<tr><th>Hour</th><th class='n'>Expected</th><th class='n'>1 in 10</th><th class='n'>Loses</th>",
          "<th class='n'>Expected</th><th class='n'>1 in 10</th><th class='n'>Loses</th></tr>", rows, "</table>",
          "<p class='pos-note'>€ per MWh against spot. 1 in 10: the bad case. Loses: chance of losing money.</p>")
+}
+
+# the same, drawn: per hour, what 1 MW long or short makes against spot. dot = expected, line = 8 in 10, hover = chance of a loss
+position_chart <- function(fc) {
+  h <- fc |> mutate(hr = floor_date(dk(time), "hour")) |> group_by(hr) |>
+    summarise(across(c(down, up, mean, q10, q90), mean), .groups = "drop") |>
+    mutate(lab = format(hr, "%H:00"))
+  side <- function(lo, mid, hi, loss, x_ax, y_ax, show) {
+    list(x = c(rbind(lo, hi, NA)), y = c(rbind(h$lab, h$lab, NA)), mid = mid, loss = loss, x_ax = x_ax, y_ax = y_ax)
+  }
+  p <- plot_ly()
+  sides <- list(list(nm = "Long", lo = h$q10, mid = h$mean, hi = h$q90, loss = h$down, xa = "x", ya = "y"),
+                list(nm = "Short", lo = -h$q90, mid = -h$mean, hi = -h$q10, loss = h$up, xa = "x2", ya = "y"))
+  for (s in sides) {
+    p <- p |>
+      add_trace(x = c(rbind(s$lo, s$hi, NA)), y = c(rbind(h$lab, h$lab, NA)), type = "scatter", mode = "lines",
+                xaxis = s$xa, line = list(color = "#d6cdc2", width = 6), hoverinfo = "skip", showlegend = FALSE) |>
+      add_trace(x = s$mid, y = h$lab, type = "scatter", mode = "markers", xaxis = s$xa,
+                marker = list(size = 11, color = ifelse(s$mid > 0, "#16a34a", "#dc2626")), showlegend = FALSE,
+                text = sprintf("%s: expected %+.0f €/MWh, 8 in 10 between %+.0f and %+.0f, loses %d in 100",
+                               s$nm, s$mid, s$lo, s$hi, round(100 * s$loss)),
+                hovertemplate = "%{text}<extra></extra>")
+  }
+  lim <- max(abs(c(h$q10, h$q90))) * 1.1
+  ax <- function(t, dom) list(domain = dom, range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1f2328", zerolinewidth = 1.5,
+                              gridcolor = "#f1ebe4", title = list(text = t, font = list(size = 12)), ticksuffix = "")
+  p |> layout(xaxis = ax("Long 1 MW, €/MWh", c(0, 0.47)), xaxis2 = ax("Short 1 MW, €/MWh", c(0.53, 1)),
+              yaxis = list(autorange = "reversed", title = ""), margin = list(l = 10, r = 10, t = 5, b = 40),
+              paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#6b7280"),
+              hoverlabel = list(bgcolor = "white")) |> config(displayModeBar = FALSE)
 }
 
 # last 24 hours: the newest forecast made before each quarter, and what happened
@@ -323,6 +377,30 @@ nw_p <- function(d, lag = 7) {
   for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
   2 * pt(-abs(mean(d) / sqrt(v / n) * sqrt((n - 1) / n)), df = n - 1)
 }
+nw_ci <- function(d, lag = 7) {
+  n <- length(d); u <- d - mean(d); v <- sum(u^2) / n
+  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
+  se <- sqrt(v / (n - 1)); c(m = mean(d), lo = mean(d) - qt(0.975, n - 1) * se, hi = mean(d) + qt(0.975, n - 1) * se)
+}
+# € a day with a 95% range: if the range crosses zero, we can't tell it apart from luck yet
+ci_chart <- function(d) {
+  r <- rbind(nw_ci(d$ens), nw_ci(d$ens - d$long))
+  lab <- c("Forecast strategy", "Better than always long?")
+  col <- ifelse(r[, "lo"] > 0, "#16a34a", ifelse(r[, "hi"] < 0, "#dc2626", "#9ca3af"))
+  lim <- max(abs(r)) * 1.25
+  plot_ly() |>
+    add_trace(x = c(rbind(r[, "lo"], r[, "hi"], NA)), y = c(rbind(lab, lab, NA)), type = "scatter", mode = "lines",
+              line = list(color = "#d6cdc2", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
+    add_trace(x = r[, "m"], y = lab, type = "scatter", mode = "markers+text", marker = list(size = 16, color = col),
+              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#1f2328"),
+              customdata = sprintf("%+.0f to %+.0f", r[, "lo"], r[, "hi"]),
+              hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
+    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1f2328", zerolinewidth = 2,
+                        ticksuffix = " €", gridcolor = "#f1ebe4", title = ""),
+           yaxis = list(title = "", autorange = "reversed"), margin = list(l = 10, r = 20, t = 30, b = 30),
+           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#6b7280")) |>
+    config(displayModeBar = FALSE)
+}
 p_txt <- function(p) if (is.na(p)) "too few days to test" else if (p < 0.001) "p < 0.001" else sprintf("p = %.2f", p)
 da_test <- if (has_da_live) sprintf(
   "%s a day (%s, not yet different from zero at 5%%). Against always long: %s a day (%s).",
@@ -359,18 +437,20 @@ desk <- list(
     date = format(da_next_day), position = sprintf("%d quarters long, %d short, 1 MW", sum(da_next$position == 1), sum(da_next$position == -1)),
     expected = round(sum(0.25 * (abs(da_next$expected) - desk_fee) * (da_next$position != 0))),
     bad = if (has_da_live && nrow(da_live) >= 20) round(unname(quantile(da_live$ens, 0.05))) else NULL) else NULL,
-  pnl = if (has_da_live) list(dates = format(as_date(da_live$date)), daily = round(da_live$ens, 2)) else NULL,
+  pnl = if (has_da_live) list(dates = format(as_date(da_live$date)), daily = round(da_live$ens, 2), long = round(da_live$long, 2)) else NULL,
+  hours = if (has_intra) { h <- ie |> mutate(t = format(dk(time), "%H:%M")); list(time = h$t, up = round(h$up, 3), down = round(h$down, 3)) } else NULL,
+  # x on a scale from lo to hi, aim marks the promise; the desk page draws each as a bar
   checks = c(
     if (has_live) lapply(c("0-1h", "day-ahead"), \(h) {
       r <- live_tab[live_tab$horizon == h, ]
       if (nrow(r) == 0) return(NULL)
-      list(name = paste("Forecast beats the benchmark,", if (h == "0-1h") "next hour" else "tomorrow"),
-           value = sprintf("%.1f%%", 100 * r$skill), target = "above 0%", light = light(r$skill, 0.02, 0),
-           detail = paste(format(r$quarters, big.mark = ","), "quarters, lower log loss"))
+      list(name = paste("Beats benchmark,", if (h == "0-1h") "next hour" else "tomorrow"),
+           value = sprintf("%.1f%%", 100 * r$skill), x = round(100 * r$skill, 2), aim = 0, lo = -5, hi = 10,
+           light = light(r$skill, 0.02, 0))
     }),
-    if (has_da_live) list(list(
-      name = "Paper P&L differs from zero", value = p_txt(nw_p(da_live$ens)), target = "p < 0.05",
-      light = if (mean(da_live$ens) < 0) "red" else if (!is.na(nw_p(da_live$ens)) && nw_p(da_live$ens) < 0.05) "green" else "amber",
-      detail = sprintf("%s a day over %d days", eur0(mean(da_live$ens)), nrow(da_live))))))
+    if (has_da_live && nrow(da_live) >= 10) { ci <- nw_ci(da_live$ens); list(list(
+      name = "Paper P&L, € a day", value = sprintf("%+.0f", ci[["m"]]), x = round(ci[["m"]]), x_lo = round(ci[["lo"]]),
+      x_hi = round(ci[["hi"]]), aim = 0, lo = -300, hi = 300,
+      light = if (ci[["hi"]] < 0) "red" else if (ci[["lo"]] > 0) "green" else "amber")) }))
 desk$checks <- Filter(Negate(is.null), desk$checks)
 jsonlite::write_json(desk, "desk.json", auto_unbox = TRUE, null = "null")
