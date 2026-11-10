@@ -30,7 +30,7 @@ d <- d[d$bucket > 1 | complete.cases(d[, c(realtime_cols, extra)]), ] |>
 window <- 365
 cores  <- as.integer(Sys.getenv("CORES", max(1, detectCores() - 1)))
 refits <- seq(as_datetime("2025-11-01 00:00:00", tz = "Europe/Copenhagen"), max(d$issue), by = "7 days")
-jobs   <- crossing(refit = refits, b = 1:4)
+jobs   <- crossing(refit = refits, b = if (nzchar(Sys.getenv("BUCKETS"))) as.integer(strsplit(Sys.getenv("BUCKETS"), ",")[[1]]) else 1:4)
 
 t0 <- Sys.time()
 out <- mclapply(seq_len(nrow(jobs)), \(j) tryCatch({
