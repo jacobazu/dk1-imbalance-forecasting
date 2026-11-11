@@ -92,6 +92,14 @@ jobs:
           after=$(sha256sum models/models.rds)
           if [ "$before" != "$after" ]; then echo "refit=true" >> "$GITHUB_OUTPUT"; fi
 
+      # imbalance prices across europe for the map. a failure here never stops the forecast
+      - name: Europe imbalance prices
+        if: github.event_name != 'push'
+        continue-on-error: true
+        env:
+          ENTSOE_TOKEN: ${{ secrets.ENTSOE_TOKEN }}
+        run: Rscript scripts/09_europe.R
+
       - name: Save models
         if: steps.live.outputs.refit == 'true'
         uses: actions/cache/save@v6

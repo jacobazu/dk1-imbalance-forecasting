@@ -198,6 +198,71 @@ if (has_recent) recent_prob_chart(re) else cat("No quarters with both a forecast
 if (has_recent) recent_spread_chart(re)
 ```
 
+# Europe
+
+## Row {height=14%}
+
+::: {.card}
+<div class="kpi" style="--accent: #c0800c">
+<div>
+<div class="kpi-label">Areas with a recent price</div>
+<div class="kpi-value">`r eu_n` of `r nrow(eu_map)`</div>
+<div class="kpi-sub">from the TSOs, via ENTSO-E, within the last 3 hours</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-globe-europe-africa"></i></div>
+</div>
+:::
+
+::: {.card}
+<div class="kpi" style="--accent: #1c7fb0">
+<div>
+<div class="kpi-label">Middle of Europe right now</div>
+<div class="kpi-value">`r if (eu_n) sprintf("%.0f", eu_mid) else "–"`</div>
+<div class="kpi-sub">€/MWh, the median imbalance price of those areas</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-distribute-horizontal"></i></div>
+</div>
+:::
+
+::: {.card}
+<div class="kpi" style="--accent: #b32640">
+<div>
+<div class="kpi-label">DK1 and DK2</div>
+<div class="kpi-value">`r paste(ifelse(eu_map$fresh[eu_map$area %in% c("DK1", "DK2")], sprintf("%.0f", eu_map$price[eu_map$area %in% c("DK1", "DK2")]), "–"), collapse = " / ")`</div>
+<div class="kpi-sub">€/MWh, latest imbalance price</div>
+</div>
+<div class="kpi-icon"><i class="bi bi-geo-alt-fill"></i></div>
+</div>
+:::
+
+## Row {height=86%}
+
+```{r}
+#| title: "Latest imbalance price per area, €/MWh. Red: above the middle of Europe, blue: below. Grey: nothing recent"
+m  <- eu_map |> filter(fresh)
+gm <- eu_map |> filter(!fresh)
+spread <- if (nrow(m)) max(abs(m$price - eu_mid), 20) else 20
+plot_ly() |>
+  add_trace(type = "scattergeo", data = gm, lon = ~lon, lat = ~lat, text = ~area, hovertext = ~tip, hoverinfo = "text",
+            mode = "markers+text", marker = list(size = 26, color = "#e7e5e4", line = list(color = "#ffffff", width = 2)),
+            textfont = list(color = "#a8a29e", size = 10), showlegend = FALSE) |>
+  add_trace(type = "scattergeo", data = m, lon = ~lon, lat = ~lat, text = ~area, hovertext = ~tip, hoverinfo = "text",
+            mode = "markers+text",
+            marker = list(size = 30, color = ~price, cmin = eu_mid - spread, cmax = eu_mid + spread,
+                          colorscale = list(c(0, "#1c7fb0"), c(0.5, "#ece8e3"), c(1, "#b32640")),
+                          line = list(color = ifelse(m$area %in% c("DK1", "DK2"), "#1c1917", "#ffffff"), width = 2),
+                          colorbar = list(title = list(text = "€/MWh", font = list(size = 11)), thickness = 10, len = 0.6, outlinewidth = 0)),
+            textfont = list(color = "#1c1917", size = 10), showlegend = FALSE) |>
+  layout(geo = list(scope = "europe", resolution = 50, projection = list(type = "mercator"),
+                    lonaxis = list(range = c(-11, 32)), lataxis = list(range = c(35.5, 71.5)),
+                    showland = TRUE, landcolor = "#f5f2ef", showcountries = TRUE, countrycolor = "#ffffff",
+                    showocean = TRUE, oceancolor = "#ffffff", showlakes = FALSE, showframe = FALSE, coastlinecolor = "#d6d3d1",
+                    bgcolor = "rgba(0,0,0,0)"),
+         margin = list(l = 0, r = 0, t = 0, b = 0), paper_bgcolor = "rgba(0,0,0,0)",
+         hoverlabel = list(bgcolor = "#ffffff", bordercolor = "#e7e5e4", font = list(color = "#1c1917"))) |>
+  config(displayModeBar = FALSE)
+```
+
 # Track record
 
 ## Row {height=14%}

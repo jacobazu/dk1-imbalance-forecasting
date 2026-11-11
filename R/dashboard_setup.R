@@ -490,3 +490,24 @@ desk <- list(
       light = if (ci[["hi"]] < 0) "red" else if (ci[["lo"]] > 0) "green" else "amber")) }))
 desk$checks <- Filter(Negate(is.null), desk$checks)
 jsonlite::write_json(desk, "desk.json", auto_unbox = TRUE, null = "null")
+
+# europe: the latest imbalance price in each area (scripts/09_europe.R). a price older than 3 hours counts as missing
+eu_areas <- read_csv("R/europe_areas.csv", show_col_types = FALSE)
+eu <- if (file.exists("live/europe_imbalance.csv")) read_csv("live/europe_imbalance.csv", show_col_types = FALSE,
+        col_types = cols(time = col_datetime(), area = col_character(), category = col_character(), .default = col_double())) else
+        tibble(area = character(), time = as_datetime(character()), minutes = double(), price = double(), category = character())
+eu_now <- eu |>
+  group_by(area) |>
+  filter(time == max(time)) |>
+  summarise(time = first(time), minutes = first(minutes), price = mean(price),
+            detail = if (n_distinct(category) > 1) paste(sprintf("%s %.0f", category, price), collapse = ", ") else "",
+            .groups = "drop") |>
+  mutate(fresh = time + minutes(minutes) >= Sys.time() - hours(3))
+eu_map <- eu_areas |> left_join(eu_now, by = "area") |>
+  mutate(fresh = coalesce(fresh, FALSE),
+         when = ifelse(is.na(time), "no price published", format(with_tz(time, "Europe/Copenhagen"), "%d %b %H:%M")),
+         tip = sprintf("<b>%s</b> (%s)<br>%s<br>%s", name, area,
+                       ifelse(is.na(price), "–", sprintf("%.0f €/MWh%s", price, ifelse(detail == "", "", paste0(" (", detail, ")")))),
+                       ifelse(fresh, paste(when, "Danish time"), paste(when, "– not recent"))))
+eu_mid <- if (any(eu_map$fresh)) median(eu_map$price[eu_map$fresh]) else 0
+eu_n   <- sum(eu_map$fresh)
