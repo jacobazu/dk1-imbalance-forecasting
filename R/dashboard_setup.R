@@ -8,9 +8,9 @@ library(plotly)
 
 Sys.setlocale("LC_TIME", "C")   # english dates
 
-grey <- "#8fa6bd"
-ink  <- "#e9f0f7"
-dir_colors <- c(down = "#c97d2c", none = "rgba(255,255,255,0.2)", up = "#2fa3b8")
+grey <- "#78716c"
+ink  <- "#1c1917"
+dir_colors <- c(down = "#c0800c", none = "#e7e5e4", up = "#1c7fb0")
 dir_labels <- c(down = "Down-regulation", none = "No regulation", up = "Up-regulation")
 model_labels <- c(ens = "Ensemble", mnl = "Multinomial lasso", xgb = "XGBoost",
                   clim = "Benchmark (last 28 days)")
@@ -45,19 +45,19 @@ nw_ci <- function(d, lag = 7) {
 ci_chart <- function(d) {
   r <- rbind(nw_ci(d$ens), nw_ci(d$ens - d$long))
   lab <- c("Forecast strategy", "Better than always long?")
-  col <- ifelse(r[, "lo"] > 0, "#4fd08a", ifelse(r[, "hi"] < 0, "#ff7a7a", "#6f859b"))
+  col <- ifelse(r[, "lo"] > 0, "#15803d", ifelse(r[, "hi"] < 0, "#b91c1c", "#a8a29e"))
   lim <- max(abs(r)) * 1.25
   plot_ly() |>
     add_trace(x = c(rbind(r[, "lo"], r[, "hi"], NA)), y = c(rbind(lab, lab, NA)), type = "scatter", mode = "lines",
-              line = list(color = "rgba(255,255,255,0.28)", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
+              line = list(color = "#d6d3d1", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
     add_trace(x = r[, "m"], y = lab, type = "scatter", mode = "markers+text", marker = list(size = 16, color = col),
-              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#e9f0f7"),
+              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#1c1917"),
               customdata = sprintf("%+.0f to %+.0f", r[, "lo"], r[, "hi"]),
               hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
-    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#e9f0f7", zerolinewidth = 2,
-                        ticksuffix = " €", gridcolor = "rgba(255,255,255,0.07)", title = ""),
+    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 2,
+                        ticksuffix = " €", gridcolor = "#f0ece8", title = ""),
            yaxis = list(title = "", autorange = "reversed"), margin = list(l = 10, r = 20, t = 30, b = 30),
-           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#8fa6bd")) |>
+           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c")) |>
     config(displayModeBar = FALSE)
 }
 p_txt <- function(p) if (p < 0.001) "p < 0.001" else paste("p =", format(round(p, 3), nsmall = 3))
@@ -85,11 +85,11 @@ chart_layout <- function(p, xtitle = "", ytitle = "") {
   p |>
     layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
            font = list(family = "Instrument Sans, Segoe UI, Helvetica Neue, Arial, sans-serif", color = grey),
-           xaxis = list(title = xtitle, showgrid = FALSE, zeroline = FALSE, color = grey, linecolor = "rgba(255,255,255,0.15)"),
-           yaxis = list(title = ytitle, color = grey, gridcolor = "rgba(255,255,255,0.07)", zerolinecolor = "rgba(255,255,255,0.28)"),
+           xaxis = list(title = xtitle, showgrid = FALSE, zeroline = FALSE, color = grey, linecolor = "#e7e5e4"),
+           yaxis = list(title = ytitle, color = grey, gridcolor = "#f0ece8", zerolinecolor = "#d6d3d1"),
            legend = list(orientation = "h", x = 0, y = -0.18, font = list(color = ink)),
            hovermode = "x unified",
-           hoverlabel = list(bgcolor = "#15324f", bordercolor = "#2b4a6b", font = list(color = ink)),
+           hoverlabel = list(bgcolor = "#ffffff", bordercolor = "#e7e5e4", font = list(color = ink)),
            margin = list(t = 20)) |>
     config(displayModeBar = FALSE)
 }
@@ -130,9 +130,9 @@ spread_chart <- function(fc, xtitle, day = FALSE, step = 15) {
   if (!has_sides(fc)) {   # forecasts saved before 9 nov 2026 only have the overall band
     return(plot_ly(fc, x = ~x) |>
       add_lines(y = ~q10, line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") |>
-      add_lines(y = ~q90, line = list(width = 0), fill = "tonexty", fillcolor = "rgba(98,214,232,0.15)",
+      add_lines(y = ~q90, line = list(width = 0), fill = "tonexty", fillcolor = "rgba(28,127,176,0.15)",
                 name = "80% band", hovertemplate = "%{y:.0f} €/MWh<extra>90%</extra>") |>
-      add_lines(y = ~mean, name = "Expected spread", line = list(color = "#2fa3b8", width = 3),
+      add_lines(y = ~mean, name = "Expected spread", line = list(color = "#1c7fb0", width = 3),
                 hovertemplate = "%{y:.1f} €/MWh<extra>Expected</extra>") |>
       chart_layout(xtitle) |> layout(xaxis = x_axis(fc, day)))
   }
@@ -145,17 +145,17 @@ spread_chart <- function(fc, xtitle, day = FALSE, step = 15) {
   fc$no_txt <- sprintf("None %s%%: 0", round(100 * fc$none))
   plot_ly(fc, x = ~x) |>
     add_bars(y = ~up90 - up10, base = ~up10, width = w, name = "If up",
-             marker = list(color = shade("249,115,22", fc$up), line = list(width = 0)),
+             marker = list(color = shade("28,127,176", fc$up), line = list(width = 0)),
              text = ~up_txt, textposition = "none", hovertemplate = "%{text}<extra></extra>") |>
     add_bars(y = ~dn90 - dn10, base = ~dn10, width = w, name = "If down",
-             marker = list(color = shade("37,99,235", fc$down), line = list(width = 0)),
+             marker = list(color = shade("192,128,12", fc$down), line = list(width = 0)),
              text = ~dn_txt, textposition = "none", hovertemplate = "%{text}<extra></extra>") |>
     add_markers(y = 0, name = "None (0)", text = ~no_txt, hovertemplate = "%{text}<extra></extra>",
-                marker = list(color = "rgba(143,166,189,0.85)", size = 4 + 16 * fc$none, line = list(width = 0))) |>
+                marker = list(color = "rgba(120,113,108,0.85)", size = 4 + 16 * fc$none, line = list(width = 0))) |>
     add_markers(y = ~up50, showlegend = FALSE, hoverinfo = "none",
-                marker = list(symbol = "line-ew", size = 10, line = list(color = "#62d6e8", width = 2))) |>
+                marker = list(symbol = "line-ew", size = 10, line = list(color = "#9a5b06", width = 2))) |>
     add_markers(y = ~dn50, showlegend = FALSE, hoverinfo = "none",
-                marker = list(symbol = "line-ew", size = 10, line = list(color = "#62d6e8", width = 2))) |>
+                marker = list(symbol = "line-ew", size = 10, line = list(color = "#9a5b06", width = 2))) |>
     chart_layout(xtitle) |>
     layout(barmode = "overlay", bargap = 0.3, xaxis = x_axis(fc, day))
 }
@@ -203,20 +203,20 @@ position_chart <- function(fc) {
   for (s in sides) {
     p <- p |>
       add_trace(x = c(rbind(s$lo, s$hi, NA)), y = c(rbind(h$lab, h$lab, NA)), type = "scatter", mode = "lines",
-                xaxis = s$xa, line = list(color = "rgba(255,255,255,0.28)", width = 6), hoverinfo = "skip", showlegend = FALSE) |>
+                xaxis = s$xa, line = list(color = "#d6d3d1", width = 6), hoverinfo = "skip", showlegend = FALSE) |>
       add_trace(x = s$mid, y = h$lab, type = "scatter", mode = "markers", xaxis = s$xa,
-                marker = list(size = 11, color = ifelse(s$mid > 0, "#4fd08a", "#ff7a7a")), showlegend = FALSE,
+                marker = list(size = 11, color = ifelse(s$mid > 0, "#15803d", "#b91c1c")), showlegend = FALSE,
                 text = sprintf("%s: expected %+.0f €/MWh, 8 in 10 between %+.0f and %+.0f, loses %d in 100",
                                s$nm, s$mid, s$lo, s$hi, round(100 * s$loss)),
                 hovertemplate = "%{text}<extra></extra>")
   }
   lim <- max(abs(c(h$q10, h$q90))) * 1.1
-  ax <- function(t, dom) list(domain = dom, range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#e9f0f7", zerolinewidth = 1.5,
-                              gridcolor = "rgba(255,255,255,0.07)", title = list(text = t, font = list(size = 12)), ticksuffix = "")
+  ax <- function(t, dom) list(domain = dom, range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 1.5,
+                              gridcolor = "#f0ece8", title = list(text = t, font = list(size = 12)), ticksuffix = "")
   p |> layout(xaxis = ax("Long 1 MW, €/MWh", c(0, 0.47)), xaxis2 = ax("Short 1 MW, €/MWh", c(0.53, 1)),
               yaxis = list(autorange = "reversed", title = ""), margin = list(l = 10, r = 10, t = 5, b = 40),
-              paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#8fa6bd"),
-              hoverlabel = list(bgcolor = "#15324f", font = list(color = "#e9f0f7"))) |> config(displayModeBar = FALSE)
+              paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c"),
+              hoverlabel = list(bgcolor = "#ffffff", font = list(color = "#1c1917"))) |> config(displayModeBar = FALSE)
 }
 
 # last 24 hours: the newest forecast made before each quarter, and what happened
@@ -238,7 +238,7 @@ if (!is.null(intra_all) && !is.null(outcomes)) {
 }
 
 # probabilities with what happened as a square on top
-happened_colors <- c(down = "#c97d2c", none = "#6f859b", up = "#2fa3b8")
+happened_colors <- c(down = "#c0800c", none = "#a8a29e", up = "#1c7fb0")
 recent_prob_chart <- function(x) {
   prob_chart(x, "", day = TRUE) |>
     add_markers(x = dk(x$time), y = rep(1.07, nrow(x)), text = unname(dir_labels[x$happened]),
@@ -323,7 +323,7 @@ da_live     <- read_if("results/da_imbalance_live.csv")
 da_log      <- read_if("forecasts/da_imbalance_log.csv")
 da_labels <- c(ens = "Forecast", clim = "Benchmark forecast", long = "Always long", short = "Always short",
                perfect = "Perfect foresight")
-da_colors <- c(ens = "#2fa3b8", clim = "#8fa6bd", long = "#4fd08a", short = "#c97d2c")
+da_colors <- c(ens = "#1c7fb0", clim = "#78716c", long = "#15803d", short = "#c0800c")
 eur0 <- function(x) paste0(ifelse(x < 0, "−", ""), format(round(abs(x)), big.mark = ","), " €")
 
 # cumulative P&L per strategy from a daily table
@@ -335,17 +335,17 @@ half_chart <- function(daily) {
   p <- plot_ly()
   for (st in c("ens", "long")) {
     ci <- t(sapply(halves, \(h) nw_ci(h[[st]])))
-    col <- if (st == "ens") "#2fa3b8" else "#6f859b"
+    col <- if (st == "ens") "#1c7fb0" else "#a8a29e"
     nm  <- if (st == "ens") "Forecast" else "Always long"
     p <- p |> add_trace(x = labs, y = ci[, "m"], type = "bar", name = nm, marker = list(color = col, cornerradius = 4),
                         error_y = list(type = "data", symmetric = FALSE, array = ci[, "hi"] - ci[, "m"],
-                                       arrayminus = ci[, "m"] - ci[, "lo"], color = "#e9f0f7", thickness = 1.2, width = 6),
+                                       arrayminus = ci[, "m"] - ci[, "lo"], color = "#1c1917", thickness = 1.2, width = 6),
                         text = sprintf("%+.0f", ci[, "m"]), textposition = "none",
                         hovertemplate = paste0(nm, ": %{y:+.0f} € a day<extra></extra>"))
   }
   p |> chart_layout() |> layout(barmode = "group", bargap = 0.35, hovermode = "closest",
                                 xaxis = list(categoryorder = "array", categoryarray = labs),
-                                yaxis = list(ticksuffix = " €", zeroline = TRUE, zerolinecolor = "#e9f0f7", zerolinewidth = 1.5))
+                                yaxis = list(ticksuffix = " €", zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 1.5))
 }
 
 cum_chart <- function(daily) {
@@ -422,19 +422,19 @@ nw_ci <- function(d, lag = 7) {
 ci_chart <- function(d) {
   r <- rbind(nw_ci(d$ens), nw_ci(d$ens - d$long))
   lab <- c("Forecast strategy", "Better than always long?")
-  col <- ifelse(r[, "lo"] > 0, "#4fd08a", ifelse(r[, "hi"] < 0, "#ff7a7a", "#6f859b"))
+  col <- ifelse(r[, "lo"] > 0, "#15803d", ifelse(r[, "hi"] < 0, "#b91c1c", "#a8a29e"))
   lim <- max(abs(r)) * 1.25
   plot_ly() |>
     add_trace(x = c(rbind(r[, "lo"], r[, "hi"], NA)), y = c(rbind(lab, lab, NA)), type = "scatter", mode = "lines",
-              line = list(color = "rgba(255,255,255,0.28)", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
+              line = list(color = "#d6d3d1", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
     add_trace(x = r[, "m"], y = lab, type = "scatter", mode = "markers+text", marker = list(size = 16, color = col),
-              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#e9f0f7"),
+              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#1c1917"),
               customdata = sprintf("%+.0f to %+.0f", r[, "lo"], r[, "hi"]),
               hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
-    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#e9f0f7", zerolinewidth = 2,
-                        ticksuffix = " €", gridcolor = "rgba(255,255,255,0.07)", title = ""),
+    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 2,
+                        ticksuffix = " €", gridcolor = "#f0ece8", title = ""),
            yaxis = list(title = "", autorange = "reversed"), margin = list(l = 10, r = 20, t = 30, b = 30),
-           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#8fa6bd")) |>
+           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c")) |>
     config(displayModeBar = FALSE)
 }
 p_txt <- function(p) if (is.na(p)) "too few days to test" else if (p < 0.001) "p < 0.001" else sprintf("p = %.2f", p)
