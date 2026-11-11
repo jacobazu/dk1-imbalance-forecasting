@@ -42,11 +42,18 @@ fetch <- function(eic) {
     req_timeout(30) |>
     req_error(is_error = \(r) FALSE) |>
     req_perform()
-  txt <- resp_body_string(resp)
+  raw <- resp_body_raw(resp)
+  # imbalance prices come as a zip file with one or more xml documents inside
+  if (length(raw) > 2 && raw[1] == as.raw(0x50) && raw[2] == as.raw(0x4b)) {
+    zf <- tempfile(fileext = ".zip"); writeBin(raw, zf)
+    dir <- tempfile(); unzip(zf, exdir = dir)
+    txt <- paste(vapply(list.files(dir, full.names = TRUE, recursive = TRUE),
+                        \(f) paste(readLines(f, warn = FALSE), collapse = "\n"), ""), collapse = "\n")
+  } else txt <- rawToChar(raw)
   x <- if (resp_status(resp) == 200) parse_prices(txt) else NULL
   if (is.null(x) || !nrow(x)) {   # entso-e says why in a <text> element
     why <- paste(regmatches(txt, gregexpr("(?<=<text>)[^<]*", txt, perl = TRUE))[[1]], collapse = " ")
-    message("  ", eic, ": http ", resp_status(resp), " ", substr(why, 1, 160))
+    message("  ", eic, ": http ", resp_status(resp), " ", substr(why, 1, 160), if (why == "") paste(" starts:", substr(gsub("\\s+", " ", txt), 1, 300)) else "")
   }
   x
 }
