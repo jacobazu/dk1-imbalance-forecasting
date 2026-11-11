@@ -12,7 +12,7 @@ library(lubridate)
 areas <- read_csv("R/europe_areas.csv", show_col_types = FALSE)
 
 to   <- floor_date(Sys.time(), "hour") + hours(1)
-from <- to - hours(12)
+from <- to - hours(96)   # some tsos publish a day or more late
 
 parse_prices <- function(txt) {
   series <- regmatches(txt, gregexpr("(?s)<TimeSeries>.*?</TimeSeries>", txt, perl = TRUE))[[1]]
