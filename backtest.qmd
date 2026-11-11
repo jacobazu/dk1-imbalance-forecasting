@@ -176,3 +176,32 @@ if (has_da_bt) {
     knitr::kable(align = "lrrr")
 }
 ```
+
+# Method {scrolling="true"}
+
+::: {.card title="How it works"}
+
+**What is forecast.** Each quarter-hour Energinet balances DK1 by activating reserves up or down. The direction
+sets the imbalance price: above spot when the system is short, below when it is long. The models give the chance
+of each direction and the spread between the imbalance price and spot.
+
+**When.** Every hour for the next 4 hours, once a day after the auction for all of tomorrow, and once before the auction for the day-ahead to imbalance positions.
+
+**Inputs.** Calendar, the spot price, wind and solar forecasts made 48 hours ahead and recent imbalances. For the
+next hour also the real-time state of the grid.
+
+**Models.** A multinomial lasso and XGBoost, one per hour ahead, refit weekly. The forecast is their average.
+Benchmark: how often each direction happened in that hour over the last 28 days.
+
+**Spread.** Recent spreads of the same direction with a similar spot price. Shown for each side on its own.
+
+**Tests.** Log loss and pinball loss against the benchmark, Diebold-Mariano with Newey-West, a calibration chart
+and the value of picking a side, on the other pages here.
+
+**Data:** [Energi Data Service](https://www.energidataservice.dk) (Energinet), weather by
+[Open-Meteo](https://open-meteo.com).<br>
+**Code:** [github.com/jacobazu/dk1-imbalance-forecasting](https://github.com/jacobazu/dk1-imbalance-forecasting)<br>
+**Last updated:** `r format(with_tz(Sys.time(), "Europe/Copenhagen"), "%d %B %Y, %H:%M")` (Danish time)
+
+:::
+
