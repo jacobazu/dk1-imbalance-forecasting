@@ -362,7 +362,7 @@ plot_ly() |>
                           colorscale = list(c(0, "#1c7fb0"), c(0.5, "#ece8e3"), c(1, "#b32640")),
                           line = list(color = ifelse(m$area %in% c("DK1", "DK2"), "#1c1917", "#ffffff"), width = 2),
                           showscale = FALSE),
-            textfont = list(color = "#1c1917", size = 9.5), showlegend = FALSE) |>
+            textfont = list(color = ifelse(abs(m$price - eu_mid) > 0.6 * spread, "#ffffff", "#1c1917"), size = 9.5), showlegend = FALSE) |>
   layout(geo = list(scope = "europe", resolution = 50, projection = list(type = "mercator"),
                     lonaxis = list(range = c(-11, 33)), lataxis = list(range = c(36, 71)),
                     showland = TRUE, landcolor = "#f5f2ef", showcountries = TRUE, countrycolor = "#ffffff",
