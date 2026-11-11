@@ -274,9 +274,36 @@ if (has_da_log) {
 } else cat("No positions yet. They are made every morning between 10:30 and 11:55, before the noon auction.")
 ```
 
+#### Column {title="Is it luck?"}
+
+##### Row {height=42%}
+
 ```{r}
-#| title: "Luck or skill"
-if (has_da_live && nrow(da_live) >= 10) ci_chart(da_live) else cat("Needs 10 traded days.")
+#| include: false
+luck <- if (has_da_live && nrow(da_live) >= 10) {
+  a <- nw_ci(da_live$ens); b <- nw_ci(da_live$ens - da_live$long)
+  verdict <- \(r, what) if (r[["lo"]] > 0) paste(what, "is very unlikely to be luck.") else
+    if (r[["hi"]] < 0) paste(what, "is very unlikely to be bad luck: it is really behind.") else
+    paste(what, "could still be luck: the range includes 0.")
+  list(a = a, b = b, n = nrow(da_live), va = verdict(a, "The profit"), vb = verdict(b, "The difference"))
+}
+```
+
+::: {.card title="What this shows"}
+A strategy can make money for a few weeks by chance. This checks whether the profit so far is more than that.
+
+`r if (is.null(luck)) "It needs 10 traded days." else sprintf("**The strategy:** %s € a day on average over %d days. The true average is probably (95%%) between %s and %s € a day. %s", sprintf("%+.0f", luck$a[["m"]]), luck$n, sprintf("%+.0f", luck$a[["lo"]]), sprintf("%+.0f", luck$a[["hi"]]), luck$va)`
+
+`r if (is.null(luck)) "" else sprintf("**Against always long** (never forecasting, just staying long): %s € a day, probably between %s and %s. %s", sprintf("%+.0f", luck$b[["m"]]), sprintf("%+.0f", luck$b[["lo"]]), sprintf("%+.0f", luck$b[["hi"]]), luck$vb)`
+
+In the chart, the dot is the average and the grey bar the 95% range. A bar wholly right of the black zero line means real profit, one crossing it means not proven yet. The range is wide because the days vary a lot, and it narrows as days are added. Newey-West, so runs of good or bad days are allowed for.
+:::
+
+##### Row {height=58%}
+
+```{r}
+#| title: "€ a day, average and 95% range"
+if (!is.null(luck)) ci_chart(da_live) else cat("Needs 10 traded days.")
 ```
 
 # Europe

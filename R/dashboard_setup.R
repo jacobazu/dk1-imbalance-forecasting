@@ -56,7 +56,7 @@ ci_chart <- function(d) {
               hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
     layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 2,
                         ticksuffix = " €", gridcolor = "#f0ece8", title = ""),
-           yaxis = list(title = "", autorange = "reversed"), margin = list(l = 10, r = 20, t = 30, b = 30),
+           yaxis = list(title = "", categoryorder = "array", categoryarray = rev(lab), range = c(-0.6, 1.6)), margin = list(l = 10, r = 20, t = 20, b = 30),
            paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c")) |>
     config(displayModeBar = FALSE)
 }
@@ -433,7 +433,7 @@ ci_chart <- function(d) {
               hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
     layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 2,
                         ticksuffix = " €", gridcolor = "#f0ece8", title = ""),
-           yaxis = list(title = "", autorange = "reversed"), margin = list(l = 10, r = 20, t = 30, b = 30),
+           yaxis = list(title = "", categoryorder = "array", categoryarray = rev(lab), range = c(-0.6, 1.6)), margin = list(l = 10, r = 20, t = 20, b = 30),
            paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c")) |>
     config(displayModeBar = FALSE)
 }
