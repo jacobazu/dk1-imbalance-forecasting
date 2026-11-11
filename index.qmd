@@ -349,20 +349,22 @@ if (!is.null(luck)) ci_chart(da_live) else cat("Needs 10 traded days.")
 #| title: "Latest imbalance price, €/MWh. Red above the European middle, blue below, grey nothing recent"
 m  <- eu_map |> filter(fresh)
 gm <- eu_map |> filter(!fresh)
-spread <- if (nrow(m)) max(abs(m$price - eu_mid), 20) else 20
+# one extreme area (poland at 1,100) would wash out the rest, so the colours stop at the 80th percentile distance from the middle
+spread <- if (nrow(m)) max(quantile(abs(m$price - eu_mid), 0.8), 30) else 30
+m <- m |> mutate(label = sprintf("<b>%s</b><br>%s", area, formatC(round(price), big.mark = ",", format = "d")))
 plot_ly() |>
   add_trace(type = "scattergeo", data = gm, lon = ~lon, lat = ~lat, text = ~area, hovertext = ~tip, hoverinfo = "text",
             mode = "markers+text", marker = list(size = 26, color = "#e7e5e4", line = list(color = "#ffffff", width = 2)),
             textfont = list(color = "#a8a29e", size = 10), showlegend = FALSE) |>
-  add_trace(type = "scattergeo", data = m, lon = ~lon, lat = ~lat, text = ~area, hovertext = ~tip, hoverinfo = "text",
+  add_trace(type = "scattergeo", data = m, lon = ~lon, lat = ~lat, text = ~label, hovertext = ~tip, hoverinfo = "text",
             mode = "markers+text",
-            marker = list(size = 30, color = ~price, cmin = eu_mid - spread, cmax = eu_mid + spread,
+            marker = list(size = 38, color = ~pmin(pmax(price, eu_mid - spread), eu_mid + spread), cmin = eu_mid - spread, cmax = eu_mid + spread,
                           colorscale = list(c(0, "#1c7fb0"), c(0.5, "#ece8e3"), c(1, "#b32640")),
                           line = list(color = ifelse(m$area %in% c("DK1", "DK2"), "#1c1917", "#ffffff"), width = 2),
-                          colorbar = list(title = list(text = "€/MWh", font = list(size = 11)), thickness = 10, len = 0.6, outlinewidth = 0)),
-            textfont = list(color = "#1c1917", size = 10), showlegend = FALSE) |>
+                          showscale = FALSE),
+            textfont = list(color = "#1c1917", size = 9.5), showlegend = FALSE) |>
   layout(geo = list(scope = "europe", resolution = 50, projection = list(type = "mercator"),
-                    lonaxis = list(range = c(-11, 32)), lataxis = list(range = c(35.5, 71.5)),
+                    lonaxis = list(range = c(-11, 33)), lataxis = list(range = c(36, 71)),
                     showland = TRUE, landcolor = "#f5f2ef", showcountries = TRUE, countrycolor = "#ffffff",
                     showocean = TRUE, oceancolor = "#ffffff", showlakes = FALSE, showframe = FALSE, coastlinecolor = "#d6d3d1",
                     bgcolor = "rgba(0,0,0,0)"),

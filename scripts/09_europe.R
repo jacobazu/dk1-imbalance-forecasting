@@ -17,6 +17,8 @@ from <- to - hours(96)   # some tsos publish a day or more late
 parse_prices <- function(txt) {
   series <- regmatches(txt, gregexpr("(?s)<TimeSeries>.*?</TimeSeries>", txt, perl = TRUE))[[1]]
   bind_rows(lapply(series, \(s) {
+    cur <- regmatches(s, regexpr("(?<=<currency_Unit.name>)[^<]*", s, perl = TRUE))
+    cur <- if (length(cur)) cur else "EUR"
     periods <- regmatches(s, gregexpr("(?s)<Period>.*?</Period>", s, perl = TRUE))[[1]]
     bind_rows(lapply(periods, \(p) {
       start <- ymd_hm(regmatches(p, regexpr("(?<=<start>)[^<]*", p, perl = TRUE)), tz = "UTC")
@@ -29,6 +31,7 @@ parse_prices <- function(txt) {
       tibble(time = start + minutes(mins * (as.integer(sapply(pts, tag, "position")) - 1)),
              minutes = mins,
              price = as.numeric(sapply(pts, tag, "imbalance_Price.amount")),
+             currency = cur,
              # a04: the area had too much (long), a05: too little (short); missing for one-price areas
              category = recode(sapply(pts, tag, "imbalance_Price.category"), A04 = "long", A05 = "short", A06 = "both"))
     }))
@@ -59,6 +62,14 @@ fetch <- function(eic) {
 }
 
 if (Sys.getenv("ENTSOE_TOKEN") == "") stop("ENTSOE_TOKEN is not set")
+
+# some tsos publish in their own currency (poland pln, czechia czk, romania ron...). the ecb's daily rates turn them into euro
+ecb <- tryCatch({
+  x <- resp_body_string(req_perform(req_timeout(request("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"), 30)))
+  m <- regmatches(x, gregexpr("currency='[A-Z]{3}' rate='[0-9.]+'", x))[[1]]
+  setNames(as.numeric(sub(".*rate='([0-9.]+)'", "\\1", m)), sub("currency='([A-Z]{3})'.*", "\\1", m))
+}, error = \(e) { message("ecb rates: ", conditionMessage(e)); c() })
+ecb <- c(EUR = 1, ecb)
 new <- bind_rows(lapply(seq_len(nrow(areas)), \(i) {
   x <- NULL
   for (eic in strsplit(areas$eic[i], "|", fixed = TRUE)[[1]]) {   # several codes: the first that answers
@@ -66,14 +77,20 @@ new <- bind_rows(lapply(seq_len(nrow(areas)), \(i) {
     if (!is.null(x) && nrow(x)) break
   }
   if (is.null(x) || !nrow(x)) { message(areas$area[i], ": nothing"); return(NULL) }
-  message(areas$area[i], ": ", nrow(x), " prices, latest ", format(max(x$time)))
+  message(areas$area[i], ": ", nrow(x), " prices in ", paste(unique(x$currency), collapse = "/"), ", latest ", format(max(x$time)))
   mutate(x, area = areas$area[i], .before = 1)
 }))
 if (!nrow(new)) stop("no area answered")
 new <- new |> filter(!is.na(price)) |> mutate(category = coalesce(category, "both"))
+odd <- setdiff(unique(new$currency), names(ecb))
+if (length(odd)) message("no euro rate for ", paste(odd, collapse = ", "), ", those areas are left out")
+new <- new |> filter(currency %in% names(ecb)) |>
+  mutate(price_local = price, price = round(price / ecb[currency], 2))
 
 file <- "live/europe_imbalance.csv"
 old  <- if (file.exists(file)) read_csv(file, show_col_types = FALSE, col_types = cols(time = col_datetime(), .default = col_guess())) else NULL
+# rows saved before the currency was read (11 nov 2026) may be in pln, czk...: the 96 hours fetched above replace them
+if (!is.null(old) && !"currency" %in% names(old)) old <- NULL
 all  <- bind_rows(new, old) |>
   distinct(area, time, category, .keep_all = TRUE) |>   # the newest copy first, so a corrected price wins
   filter(time >= Sys.time() - days(7)) |>

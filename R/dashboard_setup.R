@@ -498,6 +498,8 @@ eu <- if (file.exists("live/europe_imbalance.csv")) read_csv("live/europe_imbala
         tibble(area = character(), time = as_datetime(character()), minutes = double(), price = double(), category = character())
 eu_now <- eu |>
   group_by(area) |>
+  # some tsos (cz, si) publish 0 for a quarter that isn't settled yet: drop zeros at the end of an area's series
+  filter(any(price != 0), time <= max(time[price != 0])) |>
   filter(time == max(time)) |>
   summarise(time = first(time), minutes = first(minutes), price = mean(price),
             detail = if (n_distinct(category) > 1) paste(sprintf("%s %.0f", category, price), collapse = ", ") else "",
