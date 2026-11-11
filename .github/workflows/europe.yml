@@ -1,0 +1,41 @@
+# the europe imbalance download on its own, for testing changes to it. the hourly run does the same step
+name: Europe imbalance prices
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ["scripts/09_europe.R", "R/europe_areas.csv", ".github/workflows/europe.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+jobs:
+  europe:
+    runs-on: ubuntu-24.04
+    env:
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: renv
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-renv@v2
+      - name: Download
+        env:
+          ENTSOE_TOKEN: ${{ secrets.ENTSOE_TOKEN }}
+        run: Rscript scripts/09_europe.R
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add live/europe_imbalance.csv
+          git commit -m "Europe imbalance prices $(date -u '+%F %H:%M') UTC" || echo "Nothing new to commit"
+          git pull --rebase origin master && git push

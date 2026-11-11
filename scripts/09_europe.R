@@ -42,8 +42,13 @@ fetch <- function(eic) {
     req_timeout(30) |>
     req_error(is_error = \(r) FALSE) |>
     req_perform()
-  if (resp_status(resp) != 200) return(NULL)
-  parse_prices(resp_body_string(resp))
+  txt <- resp_body_string(resp)
+  x <- if (resp_status(resp) == 200) parse_prices(txt) else NULL
+  if (is.null(x) || !nrow(x)) {   # entso-e says why in a <text> element
+    why <- paste(regmatches(txt, gregexpr("(?<=<text>)[^<]*", txt, perl = TRUE))[[1]], collapse = " ")
+    message("  ", eic, ": http ", resp_status(resp), " ", substr(why, 1, 160))
+  }
+  x
 }
 
 if (Sys.getenv("ENTSOE_TOKEN") == "") stop("ENTSOE_TOKEN is not set")
@@ -56,9 +61,9 @@ new <- bind_rows(lapply(seq_len(nrow(areas)), \(i) {
   if (is.null(x) || !nrow(x)) { message(areas$area[i], ": nothing"); return(NULL) }
   message(areas$area[i], ": ", nrow(x), " prices, latest ", format(max(x$time)))
   mutate(x, area = areas$area[i], .before = 1)
-})) |>
-  filter(!is.na(price)) |>
-  mutate(category = coalesce(category, "both"))
+}))
+if (!nrow(new)) stop("no area answered")
+new <- new |> filter(!is.na(price)) |> mutate(category = coalesce(category, "both"))
 
 file <- "live/europe_imbalance.csv"
 old  <- if (file.exists(file)) read_csv(file, show_col_types = FALSE, col_types = cols(time = col_datetime(), .default = col_guess())) else NULL
