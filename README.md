@@ -8,9 +8,9 @@ Methods: [one page (PDF)](notes/method.pdf)
 
 Models: multinomial lasso, XGBoost and their average. The benchmark is how often each direction happened in that hour over the last 28 days.
 
-## The real test
+## Live first
 
-A backtest shows that a method would have worked. It doesn't show that it works. I made my choices with the backtest period in view, so the backtest is probably a bit too good. The live forecasts are saved before their quarter starts, so they can't be adjusted afterwards. That's the interesting part, so the dashboard's main page only shows the live forecasts and how they score. The backtest has its own page.
+Each forecast is saved before its quarter-hour starts, and the main page scores only those. The backtest has its own page.
 
 ## What the backtest shows
 
