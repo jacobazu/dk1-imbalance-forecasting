@@ -50,7 +50,12 @@ forecast_intraday <- function(models, data, issue) {
     m     <- models$intraday[[b]]
     test  <- d[d$issue == issue & d$bucket == b & complete.cases(d[, c(base_cols, m$cols)]), ]
     known <- d[d$bucket == b & !is.na(d$dir) & d$time < issue - minutes(60), ]
-    if (nrow(test) == 0) return(NULL)
+    if (nrow(test) == 0) {
+      cand <- d[d$issue == issue & d$bucket == b, c(base_cols, m$cols)]
+      miss <- names(cand)[colSums(is.na(cand)) > 0]
+      message("intraday ", b, "h: ", nrow(cand), " quarters, missing: ", paste(miss, collapse = ", "))
+      return(NULL)
+    }
     P <- list(clim = clim_probs(known, test), mnl = pred_mnl(m$mnl, test), xgb = pred_xgb(m$xgb, test))
     P$ens <- (P$mnl + P$xgb) / 2
     bind_rows(lapply(c("ens", "clim"), \(k) tibble(issue = issue, time = test$time, bucket = b,
