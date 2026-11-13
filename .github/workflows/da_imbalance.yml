@@ -21,7 +21,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # a failed run sends no email: it runs many times a day and one flaky run (an apt mirror, a late data feed)
+  # is not a failure. the watchdog in dk1-price-forecasting checks the output and emails when it is missing
   trade:
+    continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:

@@ -26,9 +26,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # a failed run sends no email: it runs many times a day and one flaky run (an apt mirror, a late data feed)
+  # is not a failure. the watchdog in dk1-price-forecasting checks the output and emails when it is missing
   # skip if this hour's forecast is already saved: the outside scheduler starts a backup run at :37,
   # and github's own timer sometimes starts one late
   gate:
+    continue-on-error: true
     runs-on: ubuntu-24.04
     outputs:
       go: ${{ steps.check.outputs.go }}
@@ -47,6 +50,7 @@ jobs:
           echo "forecast for the hour from $issue UTC, run = $go"
 
   forecast:
+    continue-on-error: true
     needs: gate
     if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-24.04
@@ -142,6 +146,7 @@ jobs:
           path: _site
 
   deploy:
+    continue-on-error: true
     needs: forecast
     runs-on: ubuntu-24.04
     environment:
