@@ -29,7 +29,7 @@ source("R/dashboard_setup.R", local = knitr::knit_global())
 
 # Accuracy {scrolling="true"}
 
-## Row {height=170px}
+## Row {height=210px}
 
 ::: {.card title="In short"}
 `r short_txt`
@@ -130,53 +130,6 @@ if (!is.null(calib)) {
 ```
 
 
-# Day-ahead to imbalance {scrolling="true"}
-
-## Row {height=150px}
-
-::: {.card title="The test"}
-1 MW bought or sold on the day-ahead auction and not delivered, so it is settled at the imbalance price. Decided at
-about 10:45 the day before, with the [price forecast](https://jacobazu.github.io/dk1-price-forecasting) in place of the
-spot price: long if the expected spread is above the fees (0.188 €/MWh), short if below minus the fees. `r da_bt_txt`
-:::
-
-## Row {height=480px}
-
-```{r}
-#| title: "Cumulative P&L with 1 MW, after fees (backtest)"
-if (!is.null(da_bt_daily)) cum_chart(da_bt_daily)
-```
-
-```{r}
-#| title: "Does the edge hold? € a day in each half of the backtest, with its 95% range"
-if (!is.null(da_bt_daily)) half_chart(da_bt_daily)
-```
-
-## Row {height=330px .tabset}
-
-```{r}
-#| title: "Strategies"
-if (has_da_bt) {
-  da_bt_sum |>
-    transmute(Strategy = label, `€ a day` = format(round(mean_day), big.mark = ","), Total = format(round(total), big.mark = ","),
-              `p (Newey-West)` = ifelse(is.na(p), "", format(round(p, 3), nsmall = 3)),
-              `Days in profit` = pct(days_positive), `Worst day` = format(round(worst_day), big.mark = ","),
-              `Best day` = format(round(best_day), big.mark = ","),
-              `Quarters traded` = pct(traded)) |>
-    knitr::kable(align = "lrrrrrrr")
-}
-```
-
-```{r}
-#| title: "The forecast against the alternatives"
-if (has_da_bt) {
-  da_bt_tests |>
-    transmute(Versus = label, `€ a day more` = round(diff_day, 1),
-              p = format(round(p, 3), nsmall = 3), `p (Holm)` = format(round(p_holm, 3), nsmall = 3)) |>
-    knitr::kable(align = "lrrr")
-}
-```
-
 # Method {scrolling="true"}
 
 ::: {.card title="How it works"}
@@ -185,7 +138,7 @@ if (has_da_bt) {
 sets the imbalance price: above spot when the system is short, below when it is long. The models give the chance
 of each direction and the spread between the imbalance price and spot.
 
-**When.** Every hour for the next 4 hours, once a day after the auction for all of tomorrow, and once before the auction for the day-ahead to imbalance positions.
+**When.** Every hour for the next 2 hours. Hours 3-4, tomorrow and the day-ahead to imbalance test still run but aren't shown since 26 Nov 2026 ([why](https://github.com/jacobazu/dk1-imbalance-forecasting/blob/master/notes/not-shown.md)).
 
 **Inputs.** Calendar, the spot price, wind and solar forecasts made 48 hours ahead and recent imbalances. For the
 next hour also the real-time state of the grid.

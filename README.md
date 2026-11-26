@@ -16,18 +16,11 @@ Each forecast is saved before its quarter-hour starts, and the main page scores 
 
 - The next hour is fairly predictable: 4.9% lower log loss than the benchmark, and picking a side with the spread forecast earns 12.5 €/MWh (p < 0.001). Imbalances tend to last, and the real-time state of the grid shows it.
 - Tomorrow only a little: 1.5% lower log loss, and picking a side earns 1.1 €/MWh, which isn't significant (p = 0.28). If tomorrow's imbalance were easy to see, the market would already have adjusted for it.
-- Before the auction it is about the same, 1.4% lower log loss, and the day-ahead to imbalance test below doesn't pass its rule.
 - So the edge is in the next hour, which is traded on the intraday market. Intraday prices aren't public, so spot stands in for them and the real value can't be measured here.
 
-## Day-ahead to imbalance (a paper test)
+## Not shown
 
-A friend of mine pointed out that a day-ahead position without physical power is settled at the imbalance price, and I took it from there. Buying a quarter on day-ahead then earns the imbalance price minus spot, and selling it earns spot minus the imbalance price. So the question is whether the spread can be forecast well enough before the noon auction to be worth a position.
-
-- Every morning between 10:30 and 11:55 Danish time (`scripts/08_da_imbalance.R`): imbalances up to 09:00, the [price forecast](https://github.com/jacobazu/dk1-price-forecasting) in place of the spot price, which isn't known yet, and weather made 48 hours ahead. Long 1 MW in each quarter where the expected spread is above the fees, short where it is below minus the fees. The positions are saved before the auction and scored once the imbalance prices are out.
-- Fees: Nord Pool's day-ahead fee, 0.055 €/MWh ([fee schedule 2026](https://www.nordpoolgroup.com/4a7ad8/globalassets/trading-and-services/nord-pool-fee-schedule-2026-nordic-and-baltic-market.pdf)), and eSett's imbalance fee for Denmark, 0.133 €/MWh ([eSett, Oct 2026](https://www.esett.com/app/uploads/2026/08/Imbalance-Settlement-Agreement-Appendix-1-1.10.2026-31.10.2026.pdf)). The yearly and weekly fees are left out.
-- The rule was set and committed before the backtest was run (`scripts/06_dayahead_to_imbalance.R`): worth trading only if the mean daily P&L is above 0 with p < 0.05 and it beats the benchmark forecast, always long and always short with p < 0.05 (Holm).
-- Backtest, 2 Nov 2025 to 10 Oct 2026: +37 € a day with 1 MW (p = 0.13), and the gains over the alternatives aren't significant either. So by that rule it isn't worth trading. It runs live as a paper test anyway.
-- A test, not trading. Energinet expects a balance responsible party to aim to be in balance ([Energinet, 2021](https://forsyningstilsynet.dk/Media/638215639738153946/2021_09_17_bilag1.pdf)), so whether this may be done on purpose depends on the market rules and the party's agreement. Closing a position on the intraday market isn't modelled, because intraday prices aren't public.
+Hours 3-4, tomorrow's forecast and a day-ahead to imbalance paper test didn't add enough. Since 26 Nov 2026 they still run and are saved, but aren't on the dashboard. [Why](notes/not-shown.md).
 
 ## Why these tests
 

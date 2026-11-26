@@ -23,9 +23,10 @@ read_if <- function(f) if (file.exists(f)) read_csv(f, show_col_types = FALSE) e
 intra_all <- read_if("forecasts/intraday_log.csv")
 intra  <- if (!is.null(intra_all)) filter(intra_all, issue == max(issue))
 outcomes <- read_if("results/outcomes.csv")
-dayah  <- read_if("forecasts/dayahead_log.csv")
-if (!is.null(dayah)) dayah <- filter(dayah, date == max(date))
+# only the next 2 hours are shown. hours 3-4, tomorrow and the day-ahead to imbalance test still run, not shown
+live_h <- c("0-1h", "1-2h")
 live   <- read_if("results/live_scored.csv")
+if (!is.null(live)) live <- filter(live, horizon %in% live_h)
 scores <- read_if("results/direction_scores.csv")
 tests  <- read_if("results/direction_tests.csv")
 calib  <- read_if("results/calibration.csv")
@@ -36,32 +37,8 @@ info_v <- function(n) info$value[info$name == n]
 
 pct   <- function(x, d = 0) paste0(format(round(100 * x, d), nsmall = d), "%")
 eur   <- function(x) paste0(if (x >= 0) "+" else "−", format(round(abs(x)), big.mark = ","))
-nw_ci <- function(d, lag = 7) {
-  n <- length(d); u <- d - mean(d); v <- sum(u^2) / n
-  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
-  se <- sqrt(v / (n - 1)); c(m = mean(d), lo = mean(d) - qt(0.975, n - 1) * se, hi = mean(d) + qt(0.975, n - 1) * se)
-}
-# € a day with a 95% range: if the range crosses zero, we can't tell it apart from luck yet
-ci_chart <- function(d) {
-  r <- rbind(nw_ci(d$ens), nw_ci(d$ens - d$long))
-  lab <- c("Forecast strategy", "Better than always long?")
-  col <- ifelse(r[, "lo"] > 0, "#15803d", ifelse(r[, "hi"] < 0, "#b91c1c", "#a8a29e"))
-  lim <- max(abs(r)) * 1.25
-  plot_ly() |>
-    add_trace(x = c(rbind(r[, "lo"], r[, "hi"], NA)), y = c(rbind(lab, lab, NA)), type = "scatter", mode = "lines",
-              line = list(color = "#d6d3d1", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
-    add_trace(x = r[, "m"], y = lab, type = "scatter", mode = "markers+text", marker = list(size = 16, color = col),
-              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#1c1917"),
-              customdata = sprintf("%+.0f to %+.0f", r[, "lo"], r[, "hi"]),
-              hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
-    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 2,
-                        ticksuffix = " €", gridcolor = "#f0ece8", title = ""),
-           yaxis = list(title = "", categoryorder = "array", categoryarray = rev(lab), range = c(-0.6, 1.6)), margin = list(l = 10, r = 20, t = 20, b = 30),
-           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c")) |>
-    config(displayModeBar = FALSE)
-}
-p_txt <- function(p) if (p < 0.001) "p < 0.001" else paste("p =", format(round(p, 3), nsmall = 3))
 dk    <- function(t) with_tz(t, "Europe/Copenhagen")
+p_txt <- function(p) if (is.na(p)) "too few days to test" else if (p < 0.001) "p < 0.001" else sprintf("p = %.2f", p)
 
 skill_of <- function(h, m = "ens") scores$skill[scores$horizon == h & scores$model == m]
 test_of  <- function(h, a = "ens", b = "clim") tests[tests$horizon == h & tests$model_a == a & tests$model_b == b, ]
@@ -163,7 +140,7 @@ spread_chart <- function(fc, xtitle, day = FALSE, step = 15) {
 # latest intraday forecast (ensemble)
 has_intra <- !is.null(intra) && any(intra$model == "ens")
 if (has_intra) {
-  ie <- intra |> filter(model == "ens") |> arrange(time) |>
+  ie <- intra |> filter(model == "ens", bucket <= 2) |> arrange(time) |>
     mutate(label = quarter_label(time))
   made <- dk(ie$made_utc[1])
   b1 <- min(ie$bucket)
@@ -255,21 +232,6 @@ recent_spread_chart <- function(x) {
                 hovertemplate = "%{y:.0f} €/MWh<extra>Actual</extra>")
 }
 
-# latest day-ahead forecast (ensemble)
-has_da <- !is.null(dayah)
-if (has_da) {
-  de <- dayah |> filter(model == "ens") |> arrange(time) |>
-    mutate(label = quarter_label(time))
-  da_day <- as_date(dayah$date[1])
-  da_avg <- de |> summarise(across(c(down, none, up, mean), mean))
-  da_dir_counts <- table(factor(c("down", "none", "up")[max.col(as.matrix(de[, c("down", "none", "up")]))],
-                                levels = c("down", "none", "up")))
-  # 96 quarters are hard to read for a whole day, so tomorrow is shown per hour (the average of its quarters)
-  de_h <- de |> mutate(time = floor_date(time, "hour")) |> group_by(time) |>
-    summarise(across(any_of(c("down", "none", "up", "mean", "q10", "q90", "up10", "up50", "up90", "dn10", "dn50", "dn90")),
-                     mean), .groups = "drop")
-}
-
 # live track record, ensemble vs benchmark
 has_live <- !is.null(live) && nrow(live) > 0
 if (has_live) {
@@ -314,74 +276,6 @@ value_txt <- if (has_spread) {
           eur1(sp_of("0-1h", "perfect", "value")))
 } else ""
 
-# day-ahead to imbalance positions
-da_bt_daily <- read_if("results/da_imbalance_daily.csv")
-da_bt_sum   <- read_if("results/da_imbalance_summary.csv")
-da_bt_tests <- read_if("results/da_imbalance_tests.csv")
-da_bt_info  <- read_if("results/da_imbalance_info.csv")
-da_live     <- read_if("results/da_imbalance_live.csv")
-da_log      <- read_if("forecasts/da_imbalance_log.csv")
-da_labels <- c(ens = "Forecast", clim = "Benchmark forecast", long = "Always long", short = "Always short",
-               perfect = "Perfect foresight")
-da_colors <- c(ens = "#1c7fb0", clim = "#78716c", long = "#15803d", short = "#c0800c")
-eur0 <- function(x) paste0(ifelse(x < 0, "−", ""), format(round(abs(x)), big.mark = ","), " €")
-
-# cumulative P&L per strategy from a daily table
-# does the edge hold? € a day in each half of the backtest, with its 95% range
-half_chart <- function(daily) {
-  mid <- daily$date[ceiling(nrow(daily) / 2)]
-  halves <- list(daily[daily$date <= mid, ], daily[daily$date > mid, ])
-  labs <- sapply(halves, \(h) paste(format(min(as_date(h$date)), "%b %y"), "to", format(max(as_date(h$date)), "%b %y")))
-  p <- plot_ly()
-  for (st in c("ens", "long")) {
-    ci <- t(sapply(halves, \(h) nw_ci(h[[st]])))
-    col <- if (st == "ens") "#1c7fb0" else "#a8a29e"
-    nm  <- if (st == "ens") "Forecast" else "Always long"
-    p <- p |> add_trace(x = labs, y = ci[, "m"], type = "bar", name = nm, marker = list(color = col, cornerradius = 4),
-                        error_y = list(type = "data", symmetric = FALSE, array = ci[, "hi"] - ci[, "m"],
-                                       arrayminus = ci[, "m"] - ci[, "lo"], color = "#1c1917", thickness = 1.2, width = 6),
-                        text = sprintf("%+.0f", ci[, "m"]), textposition = "none",
-                        hovertemplate = paste0(nm, ": %{y:+.0f} € a day<extra></extra>"))
-  }
-  p |> chart_layout() |> layout(barmode = "group", bargap = 0.35, hovermode = "closest",
-                                xaxis = list(categoryorder = "array", categoryarray = labs),
-                                yaxis = list(ticksuffix = " €", zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 1.5))
-}
-
-cum_chart <- function(daily) {
-  few <- nrow(daily) < 20
-  p <- plot_ly()
-  for (s in names(da_colors)) {
-    p <- p |> add_trace(x = as_date(daily$date), y = cumsum(daily[[s]]), name = da_labels[[s]], type = "scatter",
-                        mode = if (few) "lines+markers" else "lines",
-                        line = list(color = da_colors[[s]], width = if (s == "ens") 3 else 2),
-                        marker = if (few) list(color = da_colors[[s]], size = 7) else NULL,
-                        hovertemplate = paste0("%{y:,.0f} €<extra>", da_labels[[s]], "</extra>"))
-  }
-  xa <- list(type = "date", tickformat = "%d %b")
-  if (few) xa$dtick <- 86400000
-  p |> chart_layout("", "€, 1 MW") |> layout(xaxis = xa)
-}
-
-has_da_bt <- !is.null(da_bt_sum)
-da_bt_txt <- if (has_da_bt) {
-  e  <- da_bt_sum[da_bt_sum$strategy == "ens", ]
-  pf <- da_bt_sum[da_bt_sum$strategy == "perfect", ]
-  vs <- function(s) eur0(da_bt_tests$diff_day[da_bt_tests$versus == s])
-  worth <- da_bt_info$value[da_bt_info$name == "worth_trading"] == "TRUE"
-  paste(
-    sprintf("Backtest %s to %s, %s days. With 1 MW the forecast's positions earned %s a day after fees (%s in total, %s per MWh traded), %s with Newey-West.",
-            format(as_date(da_bt_info$value[da_bt_info$name == "from"]), "%d %b %Y"),
-            format(as_date(da_bt_info$value[da_bt_info$name == "to"]), "%d %b %Y"), e$days,
-            eur0(e$mean_day), eur0(e$total), sprintf("%.1f €", e$per_mwh), p_txt(e$p)),
-    sprintf("It made %s a day more than the benchmark forecast, %s more than always long and %s more than always short, with Holm p = %s.",
-            vs("clim"), vs("long"), vs("short"), format(round(min(da_bt_tests$p_holm), 2), nsmall = 2)),
-    if (worth) "By the rule set before running, it is worth trading." else
-      "By the rule set before running, that is not enough to call it worth trading. It runs live as paper trading anyway, as the real test.",
-    sprintf("Knowing the direction in advance would earn %s a day, so nearly all the money is in the direction, which is hard to see the day before.",
-            eur0(pf$mean_day)))
-} else ""
-
 # summary for the backtest page
 short_txt <- if (has_eval && has_spread) {
   sig <- function(p) if (p < 0.05) "significant" else "not significant"
@@ -391,58 +285,9 @@ short_txt <- if (has_eval && has_spread) {
     sprintf("Tomorrow only a little: log loss %s lower, and picking a side earns %s, which is %s (DM %s).",
             pct(skill_of("day-ahead"), 1), eur1(sp_of("day-ahead", "ens", "value")),
             sig(sp_p("day-ahead", "value")), p_txt(sp_p("day-ahead", "value"))),
-    if (has_da_bt) sprintf("Before the auction it is about the same, %s lower log loss, and the day-ahead to imbalance test %s its rule.",
-                           pct(as.numeric(da_bt_info$value[da_bt_info$name == "direction_skill"]), 1),
-                           if (da_bt_info$value[da_bt_info$name == "worth_trading"] == "TRUE") "passes" else "doesn't pass") else "",
-    "So the edge is in the next hour, which is traded on the intraday market. Its prices aren't public, so spot stands in for them here.")
+    "So the edge is in the next hour, which is traded on the intraday market. Its prices aren't public, so spot stands in for them here.",
+    "Since 26 Nov 2026 the main page shows only the next 2 hours.")
 } else ""
-
-has_da_log  <- !is.null(da_log) && nrow(da_log) > 0
-if (has_da_log) {
-  da_next <- da_log |> filter(model == "ens", date == max(date)) |> arrange(time)
-  da_next_day <- as_date(da_next$date[1])
-}
-has_da_live <- !is.null(da_live) && nrow(da_live) > 0
-
-# is the paper p&l different from zero, and from just always being long? newey-west on the daily series (7 lags)
-nw_p <- function(d, lag = 7) {
-  n <- length(d)
-  if (n < 10) return(NA_real_)
-  u <- d - mean(d)
-  v <- sum(u^2) / n
-  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
-  2 * pt(-abs(mean(d) / sqrt(v / n) * sqrt((n - 1) / n)), df = n - 1)
-}
-nw_ci <- function(d, lag = 7) {
-  n <- length(d); u <- d - mean(d); v <- sum(u^2) / n
-  for (k in seq_len(min(lag, n - 1))) v <- v + 2 * (1 - k / (lag + 1)) * sum(u[-(1:k)] * u[1:(n - k)]) / n
-  se <- sqrt(v / (n - 1)); c(m = mean(d), lo = mean(d) - qt(0.975, n - 1) * se, hi = mean(d) + qt(0.975, n - 1) * se)
-}
-# € a day with a 95% range: if the range crosses zero, we can't tell it apart from luck yet
-ci_chart <- function(d) {
-  r <- rbind(nw_ci(d$ens), nw_ci(d$ens - d$long))
-  lab <- c("Forecast strategy", "Better than always long?")
-  col <- ifelse(r[, "lo"] > 0, "#15803d", ifelse(r[, "hi"] < 0, "#b91c1c", "#a8a29e"))
-  lim <- max(abs(r)) * 1.25
-  plot_ly() |>
-    add_trace(x = c(rbind(r[, "lo"], r[, "hi"], NA)), y = c(rbind(lab, lab, NA)), type = "scatter", mode = "lines",
-              line = list(color = "#d6d3d1", width = 10), hoverinfo = "skip", showlegend = FALSE) |>
-    add_trace(x = r[, "m"], y = lab, type = "scatter", mode = "markers+text", marker = list(size = 16, color = col),
-              text = sprintf("%+.0f €", r[, "m"]), textposition = "top center", textfont = list(size = 13, color = "#1c1917"),
-              customdata = sprintf("%+.0f to %+.0f", r[, "lo"], r[, "hi"]),
-              hovertemplate = "%{y}: %{x:+.0f} € a day, 95%: %{customdata}<extra></extra>", showlegend = FALSE) |>
-    layout(xaxis = list(range = c(-lim, lim), zeroline = TRUE, zerolinecolor = "#1c1917", zerolinewidth = 2,
-                        ticksuffix = " €", gridcolor = "#f0ece8", title = ""),
-           yaxis = list(title = "", categoryorder = "array", categoryarray = rev(lab), range = c(-0.6, 1.6)), margin = list(l = 10, r = 20, t = 20, b = 30),
-           paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)", font = list(color = "#78716c")) |>
-    config(displayModeBar = FALSE)
-}
-p_txt <- function(p) if (is.na(p)) "too few days to test" else if (p < 0.001) "p < 0.001" else sprintf("p = %.2f", p)
-da_test <- if (has_da_live) sprintf(
-  "%s a day (%s, not yet different from zero at 5%%). Against always long: %s a day (%s).",
-  eur0(mean(da_live$ens)), p_txt(nw_p(da_live$ens)),
-  eur0(mean(da_live$ens - da_live$long)), p_txt(nw_p(da_live$ens - da_live$long))) else ""
-if (has_da_live && !is.na(nw_p(da_live$ens)) && nw_p(da_live$ens) < 0.05) da_test <- sub(", not yet different from zero at 5%", "", da_test, fixed = TRUE)
 
 # banner when the page is more than 3 hours old
 writeLines(sprintf('<meta name="built" content="%s">
@@ -463,31 +308,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 # summary for the desk page (jacobazu.github.io/desk), which pulls every project into one book
 light <- function(x, green, amber) if (is.na(x)) "amber" else if (x >= green) "green" else if (x >= amber) "amber" else "red"
-desk_fee <- 0.188   # day-ahead fee + imbalance fee, €/MWh (as in R/da_imbalance.R)
+fresh <- has_intra && difftime(Sys.time(), made, units = "hours") < 3
 desk <- list(
-  name = "Day-ahead to imbalance (paper)", url = "https://jacobazu.github.io/dk1-imbalance-forecasting/",
+  name = "Imbalance, next hours", url = "https://jacobazu.github.io/dk1-imbalance-forecasting/",
   updated = format(Sys.time(), "%Y-%m-%dT%H:%MZ", tz = "UTC"),
-  status = list(ok = has_da_log && da_next_day >= as_date(with_tz(Sys.time(), "Europe/Copenhagen")),
-                text = if (has_da_log) paste("Positions for", format(da_next_day, "%a %d %b"), "saved") else "No positions yet"),
-  tomorrow = if (has_da_log && da_next_day >= as_date(with_tz(Sys.time(), "Europe/Copenhagen"))) list(
-    date = format(da_next_day), position = sprintf("%d quarters long, %d short, 1 MW", sum(da_next$position == 1), sum(da_next$position == -1)),
-    expected = round(sum(0.25 * (abs(da_next$expected) - desk_fee) * (da_next$position != 0))),
-    bad = if (has_da_live && nrow(da_live) >= 20) round(unname(quantile(da_live$ens, 0.05))) else NULL) else NULL,
-  pnl = if (has_da_live) list(dates = format(as_date(da_live$date)), daily = round(da_live$ens, 2), long = round(da_live$long, 2)) else NULL,
+  status = list(ok = fresh, text = if (has_intra) paste("Forecast made", format(made, "%a %H:%M")) else "No forecast yet"),
   hours = if (has_intra) { h <- ie |> mutate(t = format(dk(time), "%H:%M")); list(time = h$t, up = round(h$up, 3), down = round(h$down, 3)) } else NULL,
   # x on a scale from lo to hi, aim marks the promise; the desk page draws each as a bar
-  checks = c(
-    if (has_live) lapply(c("0-1h", "day-ahead"), \(h) {
-      r <- live_tab[live_tab$horizon == h, ]
-      if (nrow(r) == 0) return(NULL)
-      list(name = paste("Beats benchmark,", if (h == "0-1h") "next hour" else "tomorrow"),
-           value = sprintf("%.1f%%", 100 * r$skill), x = round(100 * r$skill, 2), aim = 0, lo = -5, hi = 10,
-           light = light(r$skill, 0.02, 0))
-    }),
-    if (has_da_live && nrow(da_live) >= 10) { ci <- nw_ci(da_live$ens); list(list(
-      name = "Paper P&L, € a day", value = sprintf("%+.0f", ci[["m"]]), x = round(ci[["m"]]), x_lo = round(ci[["lo"]]),
-      x_hi = round(ci[["hi"]]), aim = 0, lo = -300, hi = 300,
-      light = if (ci[["hi"]] < 0) "red" else if (ci[["lo"]] > 0) "green" else "amber")) }))
+  checks = if (has_live) lapply(live_h, \(h) {
+    r <- live_tab[live_tab$horizon == h, ]
+    if (nrow(r) == 0) return(NULL)
+    list(name = paste("Beats benchmark,", if (h == "0-1h") "next hour" else "second hour"),
+         value = sprintf("%.1f%%", 100 * r$skill), x = round(100 * r$skill, 2), aim = 0, lo = -5, hi = 10,
+         light = light(r$skill, 0.02, 0))
+  }))
 desk$checks <- Filter(Negate(is.null), desk$checks)
 jsonlite::write_json(desk, "desk.json", auto_unbox = TRUE, null = "null")
 
